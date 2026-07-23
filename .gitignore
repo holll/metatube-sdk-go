@@ -20,9 +20,11 @@
 # Go workspace file
 go.work
 go.work.sum
+.idea/
 
 # env file
 .env
 
 # Build files
 build/
+dist/
