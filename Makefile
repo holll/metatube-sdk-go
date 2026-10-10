@@ -99,18 +99,9 @@ windows-amd64-v3:
 windows-arm64:
 	GOARCH=arm64 GOOS=windows $(GO_BUILD) -o $(BUILD_DIR)/$(SERVER_NAME)-$@.exe $(SERVER_CODE)
 
-unix_releases := $(addsuffix .zip, $(UNIX_ARCH_LIST))
-windows_releases := $(addsuffix .zip, $(WINDOWS_ARCH_LIST))
-
-$(unix_releases): %.zip: %
-	@zip -qmj $(BUILD_DIR)/$(SERVER_NAME)-$(basename $@).zip $(BUILD_DIR)/$(SERVER_NAME)-$(basename $@)
-
-$(windows_releases): %.zip: %
-	@zip -qmj $(BUILD_DIR)/$(SERVER_NAME)-$(basename $@).zip $(BUILD_DIR)/$(SERVER_NAME)-$(basename $@).exe
-
 all-arch: $(UNIX_ARCH_LIST) $(WINDOWS_ARCH_LIST)
 
-releases: $(unix_releases) $(windows_releases)
+releases: all-arch
 
 lint:
 	golangci-lint run ./...
