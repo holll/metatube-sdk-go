@@ -19,6 +19,7 @@ import (
 	_ "github.com/metatube-community/metatube-sdk-go/provider/gcolle"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/getchu"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/gfriends"
+	_ "github.com/metatube-community/metatube-sdk-go/provider/ggjav"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/h0930"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/h4610"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/heydouga"
