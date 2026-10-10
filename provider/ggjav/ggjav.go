@@ -30,9 +30,9 @@ const (
 )
 
 const (
-	baseURL   = "https://ggjav.com"
-	movieURL  = "https://ggjav.com/main/video?id=%s"
-	searchURL = "https://ggjav.com/main/search?string=%s"
+	baseURL   = "https://ggjav.com/ja/"
+	movieURL  = "https://ggjav.com/ja/main/video?id=%s"
+	searchURL = "https://ggjav.com/ja/main/search?string=%s"
 )
 
 type GGJAV struct {
@@ -41,7 +41,7 @@ type GGJAV struct {
 
 func New() *GGJAV {
 	return &GGJAV{
-		scraper.NewDefaultScraper(Name, baseURL, Priority, language.Chinese,
+		scraper.NewDefaultScraper(Name, baseURL, Priority, language.Japanese,
 			scraper.WithHeaders(map[string]string{
 				"Referer": baseURL,
 			}),
@@ -107,10 +107,11 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 		}
 	})
 
-	// Number: div containing "番號："
-	c.OnXML(`//div[starts-with(normalize-space(text()),"番號：")]`, func(e *colly.XMLElement) {
+	// Number: div containing "番号："
+	// 注意日语站点用「番号」，繁中站点用「番號」，两者不同字。
+	c.OnXML(`//div[starts-with(normalize-space(text()),"番号：")]`, func(e *colly.XMLElement) {
 		text := strings.TrimSpace(e.Text)
-		if after, ok := strings.CutPrefix(text, "番號："); ok {
+		if after, ok := strings.CutPrefix(text, "番号："); ok {
 			info.Number = strings.TrimSpace(after)
 		}
 	})
