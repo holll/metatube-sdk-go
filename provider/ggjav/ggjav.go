@@ -20,6 +20,10 @@ var (
 	_ provider.MovieSearcher = (*GGJAV)(nil)
 )
 
+// numberRe matches a leading number token of a search result title,
+// e.g. "NHDTB-817" in "NHDTB-817 長裙女學生痴漢…".
+var numberRe = regexp.MustCompile(`^(?i)[A-Z0-9_-]+$`)
+
 const (
 	Name     = "GGJAV"
 	Priority = 500
@@ -194,6 +198,13 @@ func (gg *GGJAV) SearchMovie(keyword string) (results []*model.MovieSearchResult
 			return
 		}
 		title := strings.TrimSpace(e.ChildText(`.//div[@class="item_title"]/a`))
+		// 结果标题以番号开头（如 "NHDTB-817 長裙女學生…"）。
+		// MovieSearchResult.IsValid() 要求 Number 非空，此前未填充该字段，
+		// 导致引擎把每一条搜索结果都判为无效而丢弃，表现为“搜索无结果”。
+		number, _, _ := strings.Cut(title, " ")
+		if !numberRe.MatchString(number) {
+			number = parser.ParseIDToNumber(id)
+		}
 		thumbURL := e.Request.AbsoluteURL(e.ChildAttr(`.//img[@class="item_image"]`, "src"))
 		// Cover URL uses "large_" prefix instead of "small_"
 		coverURL := strings.Replace(thumbURL,
@@ -201,6 +212,7 @@ func (gg *GGJAV) SearchMovie(keyword string) (results []*model.MovieSearchResult
 
 		results = append(results, &model.MovieSearchResult{
 			ID:       id,
+			Number:   number,
 			Title:    title,
 			Provider: gg.Name(),
 			Homepage: homepage,
