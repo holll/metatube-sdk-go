@@ -38,12 +38,9 @@ jobs:
         run: make releases
 
       - name: Upload Releases
-        uses: softprops/action-gh-release@v3
+        uses: actions/upload-artifact@v4
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          body: _Auto Released by Actions_
-          files: build/*
-          draft: false
-          prerelease: false
-          repository: metatube-community/metatube-server-releases
-          token: ${{ secrets.ORG_PAT }}
+          name: metatube-server-${{ github.ref_name }}
+          path: build/*
+          if-no-files-found: error
