@@ -9,6 +9,9 @@ on:
     tags:
       - '*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build
@@ -38,9 +41,10 @@ jobs:
         run: make releases
 
       - name: Upload Releases
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: metatube-server-${{ github.ref_name }}
-          path: build/*
-          if-no-files-found: error
+          body: _Auto Released by Actions_
+          files: build/*
+          draft: false
+          prerelease: false
