@@ -107,14 +107,19 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 		}
 	})
 
-	// Number: div containing "番号："
-	// 注意日语站点用「番号」，繁中站点用「番號」，两者不同字。
-	c.OnXML(`//div[starts-with(normalize-space(text()),"番号：")]`, func(e *colly.XMLElement) {
-		text := strings.TrimSpace(e.Text)
-		if after, ok := strings.CutPrefix(text, "番号："); ok {
-			info.Number = strings.TrimSpace(after)
-		}
-	})
+	// Number: div containing "番号："(日語) / "番號："(繁中)。
+	// 两种写法都兼容，避免站点切换语言版本时标签变字导致 Number 解析为空，
+	// 进而使 MovieInfo.IsValid() 失败、详情返回 500。
+	c.OnXML(`//div[starts-with(normalize-space(text()),"番号：") or starts-with(normalize-space(text()),"番號：")]`,
+		func(e *colly.XMLElement) {
+			text := strings.TrimSpace(e.Text)
+			for _, label := range []string{"番号：", "番號："} {
+				if after, ok := strings.CutPrefix(text, label); ok {
+					info.Number = strings.TrimSpace(after)
+					return
+				}
+			}
+		})
 
 	// Genres: links with class ctg_button
 	c.OnXML(`//a[contains(@class,"ctg_button")]`, func(e *colly.XMLElement) {
