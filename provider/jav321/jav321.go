@@ -115,15 +115,12 @@ func (jav *JAV321) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err 
 		}
 	})
 
-	// Cover+Images
-	c.OnXML(`//div[@class="col-xs-12 col-md-12"]/p/a/img[@class="img-responsive"]`, func(e *colly.XMLElement) {
+	// Cover：与 Thumb 同一张图。旧版页面此处是预览图区（取首张作封面），
+	// 站点改版后该区域变成广告位（只有 <script>/<ins>），导致 CoverURL 为空、
+	// MovieInfo.IsValid() 失败、详情一律 500 incomplete metadata。
+	c.OnXML(`//div[@class="panel-body"]/div[@class="row"]/div[@class="col-md-3"]/img`, func(e *colly.XMLElement) {
 		if src := e.Attr("src"); src != "" {
-			src = e.Request.AbsoluteURL(src)
-			if info.CoverURL == "" {
-				info.CoverURL = src // JAV321 use first image as cover.
-			} else {
-				info.PreviewImages = append(info.PreviewImages, src)
-			}
+			info.CoverURL = e.Request.AbsoluteURL(src)
 		}
 	})
 
@@ -209,6 +206,10 @@ func (jav *JAV321) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err 
 	})
 
 	err = c.Visit(info.Homepage)
+	if err == nil && info.CoverURL == "" {
+		// 封面抓不到时退回缩略图：宁可封面不精确，也别让整条元数据判为不完整。
+		info.CoverURL = info.ThumbURL
+	}
 	return
 }
 
