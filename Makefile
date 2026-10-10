@@ -21,26 +21,13 @@ GO_BUILD = GO111MODULE=$(GO111MODULE) CGO_ENABLED=$(CGO_ENABLED) \
 
 UNIX_ARCH_LIST = \
 	darwin-amd64 \
-	darwin-amd64-v3 \
 	darwin-arm64 \
-	freebsd-amd64 \
-	freebsd-amd64-v3 \
-	freebsd-arm64 \
-	linux-386 \
 	linux-amd64 \
 	linux-amd64-v3 \
-	linux-arm64 \
-	linux-armv5 \
-	linux-armv6 \
-	linux-armv7 \
-	linux-ppc64le \
-	linux-s390x \
-	openbsd-amd64 \
-	openbsd-amd64-v3
+	linux-arm64
 
 WINDOWS_ARCH_LIST = \
 	windows-amd64 \
-	windows-amd64-v3 \
 	windows-arm64
 
 all: development
