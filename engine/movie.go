@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/model"
 	mt "github.com/metatube-community/metatube-sdk-go/provider"
 )
+
+var brTagRe = regexp.MustCompile(`(?i)<br\s*/?>`)
 
 func (e *Engine) searchMovieFromDB(keyword string, provider mt.MovieProvider, all bool) (results []*model.MovieSearchResult, err error) {
 	var infos []*model.MovieInfo
@@ -209,6 +212,10 @@ func (e *Engine) getMovieInfoFromDB(provider mt.MovieProvider, id string) (*mode
 
 func (e *Engine) getMovieInfoWithCallback(provider mt.MovieProvider, id string, lazy bool, callback func() (*model.MovieInfo, error)) (info *model.MovieInfo, err error) {
 	defer func() {
+		// Sanitize summary: replace HTML <br> tags with real newlines.
+		if err == nil && info != nil && info.Summary != "" {
+			info.Summary = strings.TrimSpace(brTagRe.ReplaceAllString(info.Summary, "\n"))
+		}
 		// metadata validation check.
 		if err == nil && (info == nil || !info.IsValid()) {
 			err = mt.ErrIncompleteMetadata
