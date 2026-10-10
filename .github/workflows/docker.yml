@@ -5,11 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-      - 'main'
-    tags:
-      - '*'
+  workflow_dispatch:
 
 jobs:
 
