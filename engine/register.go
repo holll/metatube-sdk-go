@@ -33,6 +33,7 @@ import (
 	_ "github.com/metatube-community/metatube-sdk-go/provider/mgstage"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/muramura"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/mywife"
+	_ "github.com/metatube-community/metatube-sdk-go/provider/njavtv"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/pacopacomama"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/pcolle"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/sod"
