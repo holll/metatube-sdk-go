@@ -2,7 +2,9 @@ package engine
 
 import (
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/metatube-community/metatube-sdk-go/common/fetch"
 	mt "github.com/metatube-community/metatube-sdk-go/provider"
@@ -72,11 +74,24 @@ func (e *Engine) initMovieProviders() {
 
 		// Add movie provider by name.
 		e.movieProviders.Set(name, provider)
-		// Add movie provider by host.
-		host := provider.URL().Hostname()
-		e.movieHostProviders.Set(host,
-			append(e.movieHostProviders.
-				GetOrDefault(host, nil), provider))
+		// 按主站及可选别名主机注册影片 provider，同一主机只注册一次。
+		urls := []*url.URL{provider.URL()}
+		if aliases, ok := provider.(mt.ProviderURLAliases); ok {
+			urls = append(urls, aliases.URLAliases()...)
+		}
+		seen := make(map[string]bool)
+		for _, u := range urls {
+			if u == nil {
+				continue
+			}
+			host := strings.ToLower(u.Hostname())
+			if host == "" || seen[host] {
+				continue
+			}
+			seen[host] = true
+			e.movieHostProviders.Set(host,
+				append(e.movieHostProviders.GetOrDefault(host, nil), provider))
+		}
 	}
 }
 
