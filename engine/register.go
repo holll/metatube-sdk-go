@@ -6,6 +6,7 @@ import (
 	_ "github.com/metatube-community/metatube-sdk-go/provider/10musume"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/18av"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/1pondo"
+	_ "github.com/metatube-community/metatube-sdk-go/provider/airavcity"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/aventertainments"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/avwiki"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/c0930"
