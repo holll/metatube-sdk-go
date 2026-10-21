@@ -193,15 +193,14 @@ func (p *AVWiki) document(raw string, search bool) (*goquery.Document, *url.URL,
 }
 
 func (p *AVWiki) movie(raw string) (*model.MovieInfo, string, error) {
-	id, err := p.ParseMovieIDFromURL(raw)
-	if err != nil {
+	if _, err := p.ParseMovieIDFromURL(raw); err != nil {
 		return nil, "", err
 	}
 	doc, finalURL, err := p.document(raw, false)
 	if err != nil {
 		return nil, "", err
 	}
-	id, err = p.ParseMovieIDFromURL(finalURL.String())
+	id, err := p.ParseMovieIDFromURL(finalURL.String())
 	if err != nil {
 		return nil, "", err
 	}

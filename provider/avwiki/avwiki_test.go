@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/metatube-community/metatube-sdk-go/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/metatube-community/metatube-sdk-go/provider"
 )
 
 func TestAVWikiIdentity(t *testing.T) {
@@ -53,9 +54,11 @@ func offline(t *testing.T, f func(*http.Request) (int, string, error)) *AVWiki {
 	}))
 	return p
 }
+
 func fixed(t *testing.T, status int, body string) *AVWiki {
 	return offline(t, func(*http.Request) (int, string, error) { return status, body, nil })
 }
+
 func TestRegistration(t *testing.T) {
 	found := false
 	provider.RangeMovieFactory(func(name string, f provider.MovieFactory) bool {
@@ -70,6 +73,7 @@ func TestRegistration(t *testing.T) {
 	require.True(t, found)
 	provider.RangeActorFactory(func(name string, _ provider.ActorFactory) bool { assert.NotEqual(t, Name, name); return true })
 }
+
 func TestURLAndIDValidation(t *testing.T) {
 	p := offline(t, func(*http.Request) (int, string, error) { t.Fatal("invalid input must not request"); return 0, "", nil })
 	for _, raw := range []string{"https://av-wiki.net/", "https://av-wiki.net/?s=hhsi024", "https://av-wiki.net/hhsi-024/?s=x", "https://evilav-wiki.net/hhsi-024/", "https://av-wiki.net.evil/hhsi-024/", "https://av-wiki.net@evil/hhsi-024/", "https://user@av-wiki.net/hhsi-024/", "ftp://av-wiki.net/hhsi-024/", "https://av-wiki.net:443/hhsi-024/", "https://av-wiki.net/av-actress/name/", "https://av-wiki.net/category/", "https://av-wiki.net/fanza-shirouto/", "https://av-wiki.net/2022/", "https://av-wiki.net/a%2Fb-024/", "https://av-wiki.net/../hhsi-024/", "https://av-wiki.net/hhsi-024/#x"} {
@@ -88,6 +92,7 @@ func TestURLAndIDValidation(t *testing.T) {
 		assert.Equal(t, strings.ToLower(id), got)
 	}
 }
+
 func TestDetail(t *testing.T) {
 	info, err := fixed(t, 200, detail).GetMovieInfoByID("HHSI-024")
 	require.NoError(t, err)
@@ -104,13 +109,15 @@ func TestDetail(t *testing.T) {
 	assert.Empty(t, info.Summary)
 	assert.Empty(t, info.PreviewImages)
 }
+
 func TestActorsAndTitleFallback(t *testing.T) {
 	for _, tc := range []struct {
 		actors string
 		want   []string
 	}{
 		{`<a>皆瀬あかり</a><a>皆瀬あかり</a><a>別名</a><a>(≥o≤)</a><a>＊＊＊</a><a>不明</a>`, []string{"皆瀬あかり", "別名"}},
-		{`不明`, []string{}}, {`皆瀬あかり<br>別名、皆瀬あかり`, []string{"皆瀬あかり", "別名"}},
+		{`不明`, []string{}},
+		{`皆瀬あかり<br>別名、皆瀬あかり`, []string{"皆瀬あかり", "別名"}},
 	} {
 		body := strings.Replace(detail, `<a>皆瀬あかり</a>`, tc.actors, 1)
 		body = strings.Replace(body, `alt="あかり"`, `alt=""`, 1)
@@ -120,6 +127,7 @@ func TestActorsAndTitleFallback(t *testing.T) {
 		assert.Equal(t, "あかり", info.Title)
 	}
 }
+
 func TestSearchAndCID(t *testing.T) {
 	calls := []string{}
 	p := offline(t, func(r *http.Request) (int, string, error) {
@@ -147,6 +155,7 @@ func TestSearchAndCID(t *testing.T) {
 	assert.Equal(t, "あかり", results[0].Title)
 	assert.Equal(t, "https://images.example/thumb.jpg?w=125&h=125", results[0].ThumbURL)
 }
+
 func TestCIDToCanonicalIDRoundTrip(t *testing.T) {
 	for _, slug := range []string{"actual-024c", "hhsi-024c", "actual024c", "actual_024c"} {
 		t.Run(slug, func(t *testing.T) {
@@ -214,6 +223,7 @@ func TestExactMatchAndLeadingZeros(t *testing.T) {
 		assert.ErrorIs(t, err, provider.ErrInfoNotFound, query)
 	}
 }
+
 func TestErrorsAndFallback(t *testing.T) {
 	sentinel := errors.New("transport failed")
 	for _, tc := range []struct {
@@ -225,7 +235,8 @@ func TestErrorsAndFallback(t *testing.T) {
 		{"challenge", 200, `<title>One moment, please...</title><p>Your request is being verified</p>`, nil, ErrChallenge},
 		{"missing", 404, "", nil, provider.ErrInfoNotFound},
 		{"incomplete", 200, `<article><h1>誰？</h1></article>`, nil, provider.ErrIncompleteMetadata},
-		{"network", 0, "", sentinel, sentinel}, {"server", 503, "error", nil, nil},
+		{"network", 0, "", sentinel, sentinel},
+		{"server", 503, "error", nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0
@@ -279,6 +290,7 @@ func TestErrorsAndFallback(t *testing.T) {
 	_, err = fixed(t, 200, `<main><p>見つかりませんでした</p></main>`).GetMovieInfoByID("hhsi024")
 	assert.ErrorIs(t, err, provider.ErrInfoNotFound)
 }
+
 func TestTableIsScopedToCurrentArticle(t *testing.T) {
 	decoy := `<aside><dl class="dltable"><dt>メーカー品番</dt><dd>BAD-001</dd><dt>AV女優名</dt><dd>汚染</dd></dl></aside>`
 	info, err := fixed(t, 200, decoy+detail).GetMovieInfoByURL("https://av-wiki.net/hhsi-024/")

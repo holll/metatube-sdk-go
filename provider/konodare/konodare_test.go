@@ -24,13 +24,17 @@ func offline(t *testing.T, f func(*http.Request) (int, string)) *Konodare {
 	return p
 }
 
-const oldHTML = `<article><h1>PNME-333</h1><div class="entry-content"><h9>作品タイトル</h9><br><div>紹介文</div><table class="product"><tr><th>PNME-333</th></tr><tr><td rowspan="5" class="product_image"><img src="data:image/gif;base64,AA"><img src="https://img.example/cover.jpg"></td><td class="product_item">配信日</td><td>2026/10/04</td></tr><tr><td class="product_item">時間</td><td>46分</td></tr><tr><td class="product_item">サークル</td><td>ぷにもえ</td></tr><tr><td class="product_item">女優</td><td><a>さくらまひるっぽい</a></td></tr></table><table class="cosplay-table"><tr><td class="chara">キャラクター</td><td><a>キャラ</a><a>キャラ</a><em>English</em></td></tr><tr><td class="chara">出典</td><td><a>原作</a></td></tr></table></div></article><article><div class="entry-content"><h9>汚染</h9><table class="product"><tr><td class="product_item">女優</td><td><a>汚染</a></td></tr></table></div></article>`
-const newHTML = `<article class="mdb-work"><h1 class="mdb-work-title">新作品</h1><div class="mdb-work-item-no">COSH-308</div><div class="mdb-work-cover"><img src="//img.example/new.jpg"></div><div class="mdb-summary-row"><span class="mdb-summary-key">メーカー：</span><span class="mdb-summary-value">こすっち</span></div><div class="mdb-summary-row"><span class="mdb-summary-key">シリーズ：</span><span class="mdb-summary-value">---</span></div><div class="mdb-work-content">新紹介</div><div class="mdb-cosplay-meta-row"><span class="mdb-cosplay-label">女優</span><span class="mdb-cosplay-value"><a>さくらまひるっぽい</a></span></div><article class="mdb-source-card"><div class="mdb-source-meta-row"><span>配信日</span><strong>2026年10月17日</strong></div><div class="mdb-source-meta-row"><span>時間</span><strong>42分</strong></div></article><article class="mdb-source-card"><div class="mdb-source-meta-row"><span>時間</span><strong>99分</strong></div></article></article><article class="mdb-work"><h1 class="mdb-work-title">汚染</h1></article>`
-const oldSearchHTML = `<main id="main"><div id="list"><a class="entry-card-wrap" href="/pnme-333/"><article><table><tr><th class="card-number">PNME-333</th></tr><tr><td><img src="https://img.example/cover.jpg"></td><td class="product_item"><b class="entry-card-title">作品タイトル</b>配信日:2026/10/04<br>女優：<a href="/actress/a/">さくらまひるっぽい</a></td></tr></table></article></a></div></main>`
-const newSearchHTML = `<main class="mdb-main"><div class="mdb-search-grid"><article class="mdb-card"><h2 class="mdb-card-title"><a href="/cosh-308/">新作品</a></h2><div class="mdb-card-id"><span class="mdb-card-label">品番： COSH-308</span></div><div class="mdb-card-date">発売日：2026年10月17日</div></article></div></main>`
+const (
+	oldHTML       = `<article><h1>PNME-333</h1><div class="entry-content"><h9>作品タイトル</h9><br><div>紹介文</div><table class="product"><tr><th>PNME-333</th></tr><tr><td rowspan="5" class="product_image"><img src="data:image/gif;base64,AA"><img src="https://img.example/cover.jpg"></td><td class="product_item">配信日</td><td>2026/10/04</td></tr><tr><td class="product_item">時間</td><td>46分</td></tr><tr><td class="product_item">サークル</td><td>ぷにもえ</td></tr><tr><td class="product_item">女優</td><td><a>さくらまひるっぽい</a></td></tr></table><table class="cosplay-table"><tr><td class="chara">キャラクター</td><td><a>キャラ</a><a>キャラ</a><em>English</em></td></tr><tr><td class="chara">出典</td><td><a>原作</a></td></tr></table></div></article><article><div class="entry-content"><h9>汚染</h9><table class="product"><tr><td class="product_item">女優</td><td><a>汚染</a></td></tr></table></div></article>`
+	newHTML       = `<article class="mdb-work"><h1 class="mdb-work-title">新作品</h1><div class="mdb-work-item-no">COSH-308</div><div class="mdb-work-cover"><img src="//img.example/new.jpg"></div><div class="mdb-summary-row"><span class="mdb-summary-key">メーカー：</span><span class="mdb-summary-value">こすっち</span></div><div class="mdb-summary-row"><span class="mdb-summary-key">シリーズ：</span><span class="mdb-summary-value">---</span></div><div class="mdb-work-content">新紹介</div><div class="mdb-cosplay-meta-row"><span class="mdb-cosplay-label">女優</span><span class="mdb-cosplay-value"><a>さくらまひるっぽい</a></span></div><article class="mdb-source-card"><div class="mdb-source-meta-row"><span>配信日</span><strong>2026年10月17日</strong></div><div class="mdb-source-meta-row"><span>時間</span><strong>42分</strong></div></article><article class="mdb-source-card"><div class="mdb-source-meta-row"><span>時間</span><strong>99分</strong></div></article></article><article class="mdb-work"><h1 class="mdb-work-title">汚染</h1></article>`
+	oldSearchHTML = `<main id="main"><div id="list"><a class="entry-card-wrap" href="/pnme-333/"><article><table><tr><th class="card-number">PNME-333</th></tr><tr><td><img src="https://img.example/cover.jpg"></td><td class="product_item"><b class="entry-card-title">作品タイトル</b>配信日:2026/10/04<br>女優：<a href="/actress/a/">さくらまひるっぽい</a></td></tr></table></article></a></div></main>`
+	newSearchHTML = `<main class="mdb-main"><div class="mdb-search-grid"><article class="mdb-card"><h2 class="mdb-card-title"><a href="/cosh-308/">新作品</a></h2><div class="mdb-card-id"><span class="mdb-card-label">品番： COSH-308</span></div><div class="mdb-card-date">発売日：2026年10月17日</div></article></div></main>`
+)
 
-const oldEmptyHTML = `<body class="search search-no-results"><main id="main"><div class="posts-not-found"><h2>NOT FOUND</h2><p>投稿が見つかりませんでした。</p></div></main></body>`
-const newEmptyHTML = `<main class="mdb-main"><div class="mdb-empty"><p>「HHSI-024」に一致する作品が見つかりませんでした。</p></div></main>`
+const (
+	oldEmptyHTML = `<body class="search search-no-results"><main id="main"><div class="posts-not-found"><h2>NOT FOUND</h2><p>投稿が見つかりませんでした。</p></div></main></body>`
+	newEmptyHTML = `<main class="mdb-main"><div class="mdb-empty"><p>「HHSI-024」に一致する作品が見つかりませんでした。</p></div></main>`
+)
 
 func TestRealEmptySearchTemplates(t *testing.T) {
 	for _, tc := range []struct {
@@ -137,6 +141,7 @@ func TestKonodareIdentity(t *testing.T) {
 		t.Fatal(p)
 	}
 }
+
 func TestDetails(t *testing.T) {
 	for _, tc := range []struct {
 		id, body, number, title string
@@ -182,6 +187,7 @@ func TestDetails(t *testing.T) {
 		})
 	}
 }
+
 func TestSearchFallback(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
@@ -189,7 +195,8 @@ func TestSearchFallback(t *testing.T) {
 		fallback   bool
 	}{
 		{"empty", `<main id="main"><div id="list"></div></main>`, 200, true},
-		{"found", oldSearchHTML, 200, false}, {"forbidden", "denied", 403, false},
+		{"found", oldSearchHTML, 200, false},
+		{"forbidden", "denied", 403, false},
 		{"captcha", `<div id="list"></div><form id="challenge-form">captcha</form>`, 200, false},
 		{"template", "<html>unknown</html>", 200, false},
 		{"incomplete", `<div id="list"><a class="entry-card-wrap"><article>broken</article></a></div>`, 200, false},
@@ -220,6 +227,7 @@ func TestSearchFallback(t *testing.T) {
 		})
 	}
 }
+
 func TestExactAndDedup(t *testing.T) {
 	p := offline(t, func(r *http.Request) (int, string) {
 		if r.URL.RawQuery == "" {
@@ -236,6 +244,7 @@ func TestExactAndDedup(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestBoundaries(t *testing.T) {
 	p := offline(t, func(*http.Request) (int, string) { t.Fatal("invalid input requested"); return 500, "" })
 	for _, u := range []string{"https://konodare.jp.evil/a/", "ftp://konodare.jp/a/", "https://konodare.jp/", "https://konodare.jp/?s=a", "https://konodare.jp/cosh-308/?s=a", "https://konodare.jp/category/a/", "https://konodare.jp/search/", "https://u@konodare.jp/cosh-308/", "https://konodare.jp:443/cosh-308/", "https://konodare.jp/%2fcosh-308/", "https://konodare.jp/2026/", "https://konodare.jp/2026/10/", "https://konodare.jp//cosh-308/"} {
@@ -249,6 +258,7 @@ func TestBoundaries(t *testing.T) {
 		}
 	}
 }
+
 func TestNetworkErrorDoesNotFallback(t *testing.T) {
 	p := New()
 	calls := 0
@@ -371,7 +381,8 @@ func TestCanonicalAndErrors(t *testing.T) {
 	}{
 		{"external", `<link rel="canonical" href="https://evil/pnme-333/">`, 200, provider.ErrInvalidURL},
 		{"home", `<link rel="canonical" href="/">`, 200, provider.ErrInvalidURL},
-		{"404", "", 404, provider.ErrInfoNotFound}, {"incomplete", "", 200, provider.ErrIncompleteMetadata},
+		{"404", "", 404, provider.ErrInfoNotFound},
+		{"incomplete", "", 200, provider.ErrIncompleteMetadata},
 		{"canonical", `<link rel="canonical" href="https://konodare.jp/pnme-333/">`, 200, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

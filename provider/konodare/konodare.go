@@ -53,6 +53,7 @@ func (p *Konodare) URLAliases() []*url.URL { u, _ := url.Parse(newBase); return 
 func (p *Konodare) NormalizeMovieKeyword(s string) string {
 	return strings.ToUpper(strings.Join(strings.Fields(s), ""))
 }
+
 func (p *Konodare) NormalizeMovieID(s string) string {
 	s = strings.TrimSpace(s)
 	if strings.Contains(s, ":") {
@@ -60,10 +61,12 @@ func (p *Konodare) NormalizeMovieID(s string) string {
 	}
 	return p.NormalizeMovieKeyword(s)
 }
+
 func validSlug(s string) bool {
 	// 作品 slug 必须包含字母和数字，排除纯数字归档及常见分类、WordPress 端点。
 	return slugPattern.MatchString(s) && strings.ContainsAny(s, "0123456789") && strings.ContainsAny(s, "abcdefghijklmnopqrstuvwxyz")
 }
+
 func (p *Konodare) ParseMovieIDFromURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Port() != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" {
@@ -84,6 +87,7 @@ func (p *Konodare) ParseMovieIDFromURL(raw string) (string, error) {
 	}
 	return prefix + slug, nil
 }
+
 func (p *Konodare) GetMovieInfoByID(id string) (*model.MovieInfo, error) {
 	id = p.NormalizeMovieID(id)
 	if strings.Contains(id, ":") {
@@ -203,6 +207,7 @@ func values(s *goquery.Selection) []string {
 	}
 	return unique(out)
 }
+
 func unique(ss []string) []string {
 	out := []string{}
 	seen := map[string]bool{}
@@ -215,6 +220,7 @@ func unique(ss []string) []string {
 	}
 	return out
 }
+
 func image(s *goquery.Selection, base *url.URL) string {
 	result := ""
 	s.EachWithBreak(func(_ int, img *goquery.Selection) bool {
@@ -237,6 +243,7 @@ func image(s *goquery.Selection, base *url.URL) string {
 	})
 	return result
 }
+
 func field(m *model.MovieInfo, key string, v *goquery.Selection) {
 	s := text(v)
 	if s == "---" || s == "―" {
@@ -268,6 +275,7 @@ func field(m *model.MovieInfo, key string, v *goquery.Selection) {
 		}
 	}
 }
+
 func (p *Konodare) GetMovieInfoByURL(raw string) (*model.MovieInfo, error) {
 	if _, err := p.ParseMovieIDFromURL(raw); err != nil {
 		return nil, err
@@ -324,9 +332,10 @@ func (p *Konodare) GetMovieInfoByURL(raw string) (*model.MovieInfo, error) {
 		a.Find(".mdb-cosplay-meta-row").Each(func(_ int, r *goquery.Selection) {
 			key := label(text(r.Find(".mdb-cosplay-label")))
 			v := r.Find(".mdb-cosplay-value")
-			if key == "女優" {
+			switch key {
+			case "女優":
 				field(m, key, v)
-			} else if key == "キャラクター" || key == "出典" || key == "原作" {
+			case "キャラクター", "出典", "原作":
 				m.Genres = append(m.Genres, values(v)...)
 			}
 		})
@@ -359,6 +368,7 @@ func (p *Konodare) GetMovieInfoByURL(raw string) (*model.MovieInfo, error) {
 	}
 	return m, nil
 }
+
 func (p *Konodare) SearchMovie(keyword string) ([]*model.MovieSearchResult, error) {
 	if strings.TrimSpace(keyword) == "" {
 		return nil, provider.ErrInvalidKeyword
@@ -369,6 +379,7 @@ func (p *Konodare) SearchMovie(keyword string) ([]*model.MovieSearchResult, erro
 	}
 	return p.searchSite(newBase, keyword)
 }
+
 func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult, error) {
 	doc, u, err := p.document(base+"?"+url.Values{"s": {keyword}}.Encode(), true)
 	if err != nil {
@@ -453,6 +464,7 @@ func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult,
 	}
 	return results, nil
 }
+
 func labelValue(s, key string) string {
 	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), key)), ":："))
 }

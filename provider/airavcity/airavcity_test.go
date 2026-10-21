@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/metatube-community/metatube-sdk-go/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/metatube-community/metatube-sdk-go/provider"
 )
 
 func TestIdentity(t *testing.T) {
@@ -254,7 +255,7 @@ func TestGetMovieInfoByIDByNumber(t *testing.T) {
 			), nil
 		}
 		require.Equal(t, "qc-bt-4734904", r.URL.Query().Get("hid"))
-		return 200, strings.Replace(strings.Replace(detail, "STARS-087", "FNS-266", -1), "99-21-14639", "QC-BT-4734904", -1), nil
+		return 200, strings.ReplaceAll(strings.ReplaceAll(detail, "STARS-087", "FNS-266"), "99-21-14639", "QC-BT-4734904"), nil
 	})
 	info, err := p.GetMovieInfoByID("FNS-266")
 	require.NoError(t, err)
@@ -281,7 +282,7 @@ func TestGetMovieInfoByIDNumberMismatch(t *testing.T) {
 		if r.URL.Path == "/search_result" {
 			return 200, searchPage(card("99-21-70529", "FNS-265 別的作品")), nil
 		}
-		return 200, strings.Replace(detail, "STARS-087", "FNS-265", -1), nil
+		return 200, strings.ReplaceAll(detail, "STARS-087", "FNS-265"), nil
 	})
 	_, err := p.GetMovieInfoByID("FNS-266")
 	assert.ErrorIs(t, err, provider.ErrInfoNotFound)
@@ -379,10 +380,10 @@ func TestRedirectToMirrorHost(t *testing.T) {
 		headers := http.Header{"Content-Type": []string{"text/html; charset=utf-8"}}
 		if r.URL.Host == "airavcity4.cc" {
 			headers.Set("Location", "https://airav.io/video?hid=99-21-14639")
-			return &http.Response{StatusCode: 301, Status: "301", Header: headers, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
+			return &http.Response{StatusCode: http.StatusMovedPermanently, Status: "301", Header: headers, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
 		}
 		require.Equal(t, "airav.io", r.URL.Host)
-		return &http.Response{StatusCode: 200, Status: "200", Header: headers, Body: io.NopCloser(strings.NewReader(detail)), Request: r}, nil
+		return &http.Response{StatusCode: http.StatusOK, Status: "200", Header: headers, Body: io.NopCloser(strings.NewReader(detail)), Request: r}, nil
 	}))
 	info, err := p.GetMovieInfoByURL("https://airavcity4.cc/video?hid=99-21-14639")
 	require.NoError(t, err)
