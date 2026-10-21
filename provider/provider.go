@@ -27,6 +27,11 @@ type Provider interface {
 	URL() *url.URL
 }
 
+// ProviderURLAliases 是可选接口，用于声明影片路由的其他基础 URL。
+type ProviderURLAliases interface {
+	URLAliases() []*url.URL
+}
+
 type MovieSearcher interface {
 	// SearchMovie searches matched movies.
 	SearchMovie(keyword string) ([]*model.MovieSearchResult, error)
