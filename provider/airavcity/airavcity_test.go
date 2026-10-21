@@ -61,7 +61,7 @@ func offline(t *testing.T, f func(*http.Request) (int, string, error)) *AirAVCit
 	t.Helper()
 	p := New()
 	p.ClonedCollector().WithTransport(transportFunc(func(r *http.Request) (*http.Response, error) {
-		require.Equal(t, "airavcity4.cc", r.URL.Host)
+		require.True(t, isHost(r.URL.Host), r.URL.Host)
 		status, body, err := f(r)
 		if err != nil {
 			return nil, err
@@ -174,9 +174,9 @@ func TestDetailMultipleActorsAndOptionalFields(t *testing.T) {
 
 func TestDetailIncompleteMetadata(t *testing.T) {
 	for name, body := range map[string]string{
-		"no-number":  strings.Replace(detail, `番號：<span>STARS-087</span>`, `番號：<span></span>`, 1),
-		"no-title":   strings.Replace(detail, `<div class="video-title my-3"><h1>STARS-087 永野一夏 AV出道</h1></div>`, ``, 1),
-		"no-cover":   strings.Replace(detail, `<meta property="og:image" content="https://airavcity4.cc/storage/cover/big/99-21-14639.jpg">`, ``, 1),
+		"no-number":   strings.Replace(detail, `番號：<span>STARS-087</span>`, `番號：<span></span>`, 1),
+		"no-title":    strings.Replace(detail, `<div class="video-title my-3"><h1>STARS-087 永野一夏 AV出道</h1></div>`, ``, 1),
+		"no-cover":    strings.Replace(detail, `<meta property="og:image" content="https://airavcity4.cc/storage/cover/big/99-21-14639.jpg">`, ``, 1),
 		"placeholder": `<html><head><title>免費A片</title></head><body><div class="video-title"><h1></h1></div></body></html>`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -295,10 +295,10 @@ func TestErrorsAndChallenge(t *testing.T) {
 		neterr error
 		want   error
 	}{
-		"challenge":  {200, `<html><head><title>Just a moment...</title></head></html>`, nil, ErrChallenge},
-		"not-found":  {404, `<html><body>404</body></html>`, nil, provider.ErrInfoNotFound},
-		"network":    {0, "", sentinel, sentinel},
-		"server":     {503, "error", nil, nil},
+		"challenge": {200, `<html><head><title>Just a moment...</title></head></html>`, nil, ErrChallenge},
+		"not-found": {404, `<html><body>404</body></html>`, nil, provider.ErrInfoNotFound},
+		"network":   {0, "", sentinel, sentinel},
+		"server":    {503, "error", nil, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			p := offline(t, func(*http.Request) (int, string, error) { return tc.status, tc.body, tc.neterr })
@@ -319,18 +319,18 @@ func TestErrorsAndChallenge(t *testing.T) {
 
 func TestRedirectValidation(t *testing.T) {
 	for destination, allowed := range map[string]bool{
-		"https://airavcity4.cc/video?hid=99-21-14639":     true,
-		"https://airavcity4.cc/video?hid=qc-bt-4734904":   true,
-		"https://evil.example/video?hid=99-21-14639":      false,
+		"https://airavcity4.cc/video?hid=99-21-14639":      true,
+		"https://airavcity4.cc/video?hid=qc-bt-4734904":    true,
+		"https://evil.example/video?hid=99-21-14639":       false,
 		"https://airavcity4.cc/search_result?kw=STARS-087": false,
-		"https://airavcity4.cc/":                          false,
+		"https://airavcity4.cc/":                           false,
 	} {
 		t.Run(destination, func(t *testing.T) {
 			p := New()
 			calls := 0
 			p.ClonedCollector().WithTransport(transportFunc(func(r *http.Request) (*http.Response, error) {
 				calls++
-				require.Equal(t, "airavcity4.cc", r.URL.Host)
+				require.True(t, isHost(r.URL.Host), r.URL.Host)
 				status, body := 200, detail
 				headers := http.Header{"Content-Type": []string{"text/html; charset=utf-8"}}
 				// 只在首次请求时重定向，避免同一目标再次 302 造成循环。
@@ -348,6 +348,83 @@ func TestRedirectValidation(t *testing.T) {
 			}
 			assert.ErrorIs(t, err, provider.ErrInvalidURL)
 			assert.Equal(t, 1, calls)
+		})
+	}
+}
+
+func TestURLAliasesAndMirror(t *testing.T) {
+	p := New()
+	aliases := p.URLAliases()
+	require.Len(t, aliases, 1)
+	assert.Equal(t, "airav.io", aliases[0].Hostname())
+	assert.NotEqual(t, p.URL().Hostname(), aliases[0].Hostname())
+
+	// 两个域名指向同一站点，必须都能解析出相同的 hid。
+	for _, raw := range []string{
+		"https://airavcity4.cc/video?hid=99-21-14639",
+		"https://airav.io/video?hid=99-21-14639",
+	} {
+		id, err := p.ParseMovieIDFromURL(raw)
+		require.NoError(t, err, raw)
+		assert.Equal(t, "99-21-14639", id)
+	}
+}
+
+// 日本 IP 访问 airavcity4.cc 会 301 到 airav.io，代理场景必须能跟随。
+func TestRedirectToMirrorHost(t *testing.T) {
+	calls := 0
+	p := New()
+	p.ClonedCollector().WithTransport(transportFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		headers := http.Header{"Content-Type": []string{"text/html; charset=utf-8"}}
+		if r.URL.Host == "airavcity4.cc" {
+			headers.Set("Location", "https://airav.io/video?hid=99-21-14639")
+			return &http.Response{StatusCode: 301, Status: "301", Header: headers, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
+		}
+		require.Equal(t, "airav.io", r.URL.Host)
+		return &http.Response{StatusCode: 200, Status: "200", Header: headers, Body: io.NopCloser(strings.NewReader(detail)), Request: r}, nil
+	}))
+	info, err := p.GetMovieInfoByURL("https://airavcity4.cc/video?hid=99-21-14639")
+	require.NoError(t, err)
+	assert.Equal(t, "STARS-087", info.Number)
+	assert.Equal(t, 2, calls)
+}
+
+func TestMirrorHostRejectedForWrongPath(t *testing.T) {
+	p := offline(t, func(*http.Request) (int, string, error) {
+		t.Fatal("invalid input must not request")
+		return 0, "", nil
+	})
+	for _, raw := range []string{
+		"https://airav.io/",
+		"https://airav.io/search_result?kw=x",
+		"https://airav.io/video",
+		"https://airav.io.evil/video?hid=99-21-14639",
+	} {
+		_, err := p.GetMovieInfoByURL(raw)
+		require.ErrorIs(t, err, provider.ErrInvalidURL, raw)
+	}
+}
+
+// 正常页面同样会引用 Cloudflare 的 JSD 探针脚本，
+// 不能仅凭 /cdn-cgi/challenge-platform/ 判定为挑战页。
+func TestNormalPageWithJSDProbeIsNotChallenge(t *testing.T) {
+	body := strings.Replace(detail, "</head>",
+		`<script>a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js'</script></head>`, 1)
+	info, err := fixed(t, 200, body).GetMovieInfoByURL("https://airavcity4.cc/video?hid=99-21-14639")
+	require.NoError(t, err)
+	assert.Equal(t, "STARS-087", info.Number)
+}
+
+func TestChallengeMarkers(t *testing.T) {
+	for name, body := range map[string]string{
+		"just-a-moment": `<html><head><title>Just a moment...</title></head></html>`,
+		"cf-chl-opt":    `<html><script>window._cf_chl_opt={cvId:'3'}</script></html>`,
+		"cf-chl-prefix": `<html><div id="cf-chl-widget"></div></html>`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := fixed(t, 200, body).GetMovieInfoByURL("https://airavcity4.cc/video?hid=99-21-14639")
+			assert.ErrorIs(t, err, ErrChallenge)
 		})
 	}
 }

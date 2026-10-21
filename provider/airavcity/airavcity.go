@@ -19,18 +19,25 @@ import (
 )
 
 const (
-	Name     = "AirAVCity"
-	Priority = 300
-	baseURL  = "https://airavcity4.cc/"
+	Name      = "AirAVCity"
+	Priority  = 300
+	baseURL   = "https://airavcity4.cc/"
+	mirrorURL = "https://airav.io/"
 )
+
+// 同一站点的两个域名会按访问者地区互相 301：
+// 日本 IP 访问 airavcity4.cc 跳 airav.io，其他地区访问 airav.io 跳回
+// airavcity4.cc。两个域名都必须接受，否则配置日本代理后无法访问。
+var hosts = []string{"airavcity4.cc", "airav.io"}
 
 // ErrChallenge 区分 Cloudflare 挑战页与正常空结果。
 // 本来源不会尝试解决或绕过验证。
 var ErrChallenge = errors.New("AirAVCity: request verification required")
 
 var (
-	_ provider.MovieProvider = (*AirAVCity)(nil)
-	_ provider.MovieSearcher = (*AirAVCity)(nil)
+	_ provider.MovieProvider      = (*AirAVCity)(nil)
+	_ provider.MovieSearcher      = (*AirAVCity)(nil)
+	_ provider.ProviderURLAliases = (*AirAVCity)(nil)
 
 	// hid 形如 99-21-14639、QC-BT-4734904、127999。
 	hidPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -39,6 +46,17 @@ var (
 	// 搜索卡片标题以番号开头，用于提取单部作品的番号。
 	titlePrefix = regexp.MustCompile(`^([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)\s+`)
 )
+
+func isHost(host string) bool {
+	for _, h := range hosts {
+		if strings.EqualFold(host, h) {
+			return true
+		}
+	}
+	return false
+}
+
+func isScheme(scheme string) bool { return scheme == "http" || scheme == "https" }
 
 type AirAVCity struct{ *scraper.Scraper }
 
@@ -56,9 +74,14 @@ func New() *AirAVCity {
 	return p
 }
 
+// URLAliases 声明镜像域名，使引擎能按 airav.io 的 URL 路由到本 provider。
+func (p *AirAVCity) URLAliases() []*url.URL {
+	u, _ := url.Parse(mirrorURL)
+	return []*url.URL{u}
+}
+
 func (p *AirAVCity) validateRequestURL(u *url.URL, search bool) error {
-	if (u.Scheme != "http" && u.Scheme != "https") ||
-		!strings.EqualFold(u.Host, "airavcity4.cc") ||
+	if !isScheme(u.Scheme) || !isHost(u.Host) ||
 		u.User != nil || u.Port() != "" || u.Fragment != "" || u.RawFragment != "" {
 		return provider.ErrInvalidURL
 	}
@@ -87,8 +110,8 @@ func (p *AirAVCity) NormalizeMovieID(id string) string {
 
 func (p *AirAVCity) ParseMovieIDFromURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") ||
-		!strings.EqualFold(u.Host, "airavcity4.cc") || u.User != nil || u.Port() != "" ||
+	if err != nil || !isScheme(u.Scheme) || !isHost(u.Host) ||
+		u.User != nil || u.Port() != "" ||
 		u.Fragment != "" || u.RawFragment != "" || u.Opaque != "" ||
 		u.Path != "/video" || strings.Contains(u.EscapedPath(), "%") {
 		return "", provider.ErrInvalidURL
@@ -314,9 +337,11 @@ func (p *AirAVCity) document(raw string, search bool) (*goquery.Document, error)
 	var parseErr error
 	challenge := func(body []byte) bool {
 		text := strings.ToLower(string(body))
+		// 注意不能只看 /cdn-cgi/challenge-platform/：正常页面也会带
+		// Cloudflare 的 JSD 探针脚本，只有挑战页才有下面这些特征。
 		return strings.Contains(text, "just a moment") ||
-			strings.Contains(text, "cf-chl-") ||
-			strings.Contains(text, "/cdn-cgi/challenge-platform/")
+			strings.Contains(text, "_cf_chl_opt") ||
+			strings.Contains(text, "cf-chl-")
 	}
 	c.OnResponse(func(r *colly.Response) {
 		if challenge(r.Body) {
