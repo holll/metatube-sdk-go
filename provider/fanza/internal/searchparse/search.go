@@ -11,6 +11,9 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+// maxLineSize 是单行 next_f 数据的上限，用于容纳大结果集的搜索页。
+const maxLineSize = 8 * 1024 * 1024
+
 // SearchPageParser implements a search page parser for FANZA.
 type SearchPageParser struct {
 	vm   *otto.Otto
@@ -123,6 +126,9 @@ func (p *SearchPageParser) Parse(resp *ResponseWrapper) error {
 
 	reader := strings.NewReader(p.data)
 	scanner := bufio.NewScanner(reader)
+	// Next.js 的 next_f 数据行随结果数量增长，热门番号搜索页
+	// 单行可超过 100KB，必须放宽默认 64KB 的行长上限。
+	scanner.Buffer(make([]byte, 0, 64*1024), maxLineSize)
 
 	extractor := regexp.MustCompile(`^\w:(\[.+])`)
 	var jsonContent []byte

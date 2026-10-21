@@ -35,9 +35,10 @@ import (
 )
 
 var (
-	_ provider.MovieProvider = (*FANZA)(nil)
-	_ provider.MovieSearcher = (*FANZA)(nil)
-	_ provider.MovieReviewer = (*FANZA)(nil)
+	_ provider.MovieProvider      = (*FANZA)(nil)
+	_ provider.MovieSearcher      = (*FANZA)(nil)
+	_ provider.MovieReviewer      = (*FANZA)(nil)
+	_ provider.ProviderURLAliases = (*FANZA)(nil)
 )
 
 const (
@@ -97,6 +98,13 @@ func New() *FANZA {
 func (fz *FANZA) SetRequestTimeout(timeout time.Duration) {
 	fz.httpClient.Timeout = timeout
 	fz.Scraper.SetRequestTimeout(timeout)
+}
+
+// URLAliases 声明影片详情所在的另一个主机，使引擎能按 video.dmm.co.jp
+// 的 URL 路由到本 provider（主站 www.dmm.co.jp 由 URL() 提供）。
+func (fz *FANZA) URLAliases() []*url.URL {
+	u, _ := url.Parse(videoURL)
+	return []*url.URL{u}
 }
 
 func (fz *FANZA) NormalizeMovieID(id string) string {
@@ -601,6 +609,7 @@ func (fz *FANZA) searchMovieNext(keyword string) (results []*model.MovieSearchRe
 		fz.sortMovieSearchResults(keyword, results)
 	}()
 
+	var regionErr error
 	c := fz.ClonedCollector()
 	p := searchparse.NewSearchPageParser()
 
@@ -608,13 +617,25 @@ func (fz *FANZA) searchMovieNext(keyword string) (results []*model.MovieSearchRe
 		_ = p.LoadJSCode(e.Text)
 	})
 
-	if err = c.Visit(fmt.Sprintf(searchURL, url.QueryEscape(keyword))); err != nil {
-		return
+	// 地域限制页会 302 到 /not-available-in-your-region/，colly 默认
+	// 跟随跳转，需在响应阶段标记，避免把限制页报成解析错误。
+	c.OnResponse(func(r *colly.Response) {
+		if isRegionError(r) {
+			regionErr = ErrRegionNotAvailable
+		}
+	})
+
+	visitErr := c.Visit(fmt.Sprintf(searchURL, url.QueryEscape(keyword)))
+	if regionErr != nil {
+		return nil, regionErr
+	}
+	if visitErr != nil {
+		return nil, visitErr
 	}
 
 	resp := &searchparse.ResponseWrapper{}
 	if err = p.Parse(resp); err != nil {
-		return
+		return nil, err
 	}
 
 	filter := func(url string) bool {
