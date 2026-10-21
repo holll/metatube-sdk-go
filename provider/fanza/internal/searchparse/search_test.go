@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -2903,3 +2904,22 @@ fV19XX1dXSxcIm5vdEZvdW5kU3R5bGVzXCI6W119XX1dXX1dfV1cbiJdKTwvc2NyaXB0PjxzY3JpcHQ+
 c2VsZi5fX25leHRfZi5wdXNoKFsxLCIzODpbXCIkXCIsXCIkTGJcIixudWxsLHt9XVxuIl0pPC9zY3Jp
 cHQ+PC9ib2R5PjwvaHRtbD4=
 `
+
+// 大结果集的 next_f 数据行会超过 bufio.Scanner 默认的 64KB 上限，
+// 这里构造一条超过该上限的行，确保解析器能正常读取。
+func TestParseSearchPageLongLine(t *testing.T) {
+	padding := strings.Repeat("x", 128*1024)
+	payload := `7:["$","div",null,{"backendResponse":{"contents":{"count":1,"data":[]}},"padding":"` + padding + `"}]`
+
+	parser := NewSearchPageParser()
+	// 复刻真实页面：先 push [0]，再逐条 push 数据行。
+	require.NoError(t, parser.LoadJSCode(`self.__next_f=self.__next_f||[]`))
+	require.NoError(t, parser.LoadJSCode(`self.__next_f.push([0])`))
+	require.NoError(t, parser.LoadJSCode(`self.__next_f.push([1,"`+
+		strings.ReplaceAll(payload, `"`, `\"`)+`\n"])`))
+
+	resp := &ResponseWrapper{}
+	require.NoError(t, parser.Parse(resp))
+	assert.Equal(t, 1, resp.BackendResponse.Contents.Count)
+	assert.Empty(t, resp.BackendResponse.Contents.Data)
+}
