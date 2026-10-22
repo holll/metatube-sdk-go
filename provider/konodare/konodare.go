@@ -426,6 +426,13 @@ func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult,
 			}
 			r.Title = text(card.Find("b.entry-card-title"))
 			r.Number = text(card.Find(".card-number"))
+			if r.Title == "" && r.Number == "" {
+				heading := text(card.Find("h2.entry-card-title"))
+				if numberPattern.MatchString(heading) {
+					r.Number = heading
+					r.Title = text(card.Find(".entry-card-snippet b"))
+				}
+			}
 			r.ReleaseDate = parser.ParseDate(datePattern.FindString(text(card.Find(".product_item"))))
 			card.Find(`a[href*="/actress/"]`).Each(func(_ int, a *goquery.Selection) {
 				r.Actors = append(r.Actors, text(a))

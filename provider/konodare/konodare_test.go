@@ -188,6 +188,23 @@ func TestDetails(t *testing.T) {
 	}
 }
 
+func TestCocoonSearchTemplate(t *testing.T) {
+	const body = `<div id="list"><a href="https://konodare.wew.jp/azm044/" class="entry-card-wrap"><article><img src="https://img.example/azm044.jpg"><h2 class="entry-card-title">AZM044</h2><div class="entry-card-snippet"><b>テスト作品</b></div></article></a></div>`
+	p := offline(t, func(r *http.Request) (int, string) {
+		if r.URL.Host != "konodare.wew.jp" {
+			t.Fatal(r.URL)
+		}
+		return 200, body
+	})
+	rs, err := p.SearchMovie("AZM-044")
+	if err != nil || len(rs) != 1 {
+		t.Fatal(rs, err)
+	}
+	if rs[0].Number != "AZM044" || rs[0].Title != "テスト作品" || rs[0].ID != "wew:azm044" || rs[0].CoverURL != "https://img.example/azm044.jpg" || !rs[0].IsValid() {
+		t.Fatalf("unexpected search result: %+v", rs[0])
+	}
+}
+
 func TestSearchFallback(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
