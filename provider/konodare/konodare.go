@@ -469,7 +469,15 @@ func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult,
 		r.Number = p.NormalizeMovieKeyword(r.Number)
 		r.CoverURL = image(card.Find("img"), u)
 		r.ThumbURL = r.CoverURL
-		if e != nil || !r.IsValid() {
+		if e != nil || r.Number == "" {
+			invalid = true
+			return
+		}
+		// 搜索结果偶尔包含番号和详情链接完整、但标题为空的邻近卡片；忽略它，避免污染有效命中。
+		if r.Title == "" {
+			return
+		}
+		if !r.IsValid() {
 			invalid = true
 			return
 		}

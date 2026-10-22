@@ -225,6 +225,15 @@ func TestCocoonSearchTemplate(t *testing.T) {
 	}
 }
 
+func TestCocoonSearchSkipsTitlelessRelatedCard(t *testing.T) {
+	body := strings.Replace(oldSearchHTML, `</div></main>`, `<a class="entry-card-wrap" href="/pnme-223/"><article><img src="https://img.example/other.jpg"><h2 class="entry-card-title">PNME-223</h2></article></a></div></main>`, 1)
+	p := offline(t, func(*http.Request) (int, string) { return 200, body })
+	rs, err := p.SearchMovie("PNME-224")
+	if err != nil || len(rs) != 1 || rs[0].Number != "PNME-333" {
+		t.Fatal(rs, err)
+	}
+}
+
 func TestSearchFallback(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
