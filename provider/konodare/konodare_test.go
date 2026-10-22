@@ -188,6 +188,26 @@ func TestDetails(t *testing.T) {
 	}
 }
 
+func TestCocoonDetailTemplate(t *testing.T) {
+	const body = `<article><header><h1 class="entry-title">AZM044</h1><figure class="eye-catch"><img src="https://img.example/azm044.jpg"></figure></header><div class="entry-content"><h9>テスト作品</h9><div>紹介文</div><table><tr><th class="api_ko">発売日：</th><td class="api">2023/03/11</td></tr><tr><th class="api_ko">時間：</th><td class="api">97分</td></tr><tr><th class="api_ko">メーカー：</th><td class="api">同人</td></tr><tr><th class="api_ko">レーベル：</th><td class="api">アニクラ勢もぐせく</td></tr><tr><th class="api_ko">シリーズ：</th><td class="api">ケイ</td></tr><tr><th class="api_ko">女優：</th><td class="api">非公表</td></tr></table><table class="cosplay-table"><tr><td class="chara">女優</td><td><a>冬愛ことね</a></td></tr><tr><td class="chara">キャラクター</td><td><a>胡桃</a></td></tr><tr><td class="chara">出典</td><td><a>原神</a></td></tr></table></div></article>`
+	for _, slug := range []string{"azm044", "azm045"} {
+		t.Run(slug, func(t *testing.T) {
+			page := strings.ReplaceAll(body, "AZM044", strings.ToUpper(slug))
+			p := offline(t, func(*http.Request) (int, string) { return 200, page })
+			m, err := p.GetMovieInfoByURL("https://konodare.wew.jp/" + slug + "/")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !m.IsValid() || m.ID != "wew:"+slug || m.Number != strings.ToUpper(slug) || m.Title != "テスト作品" || m.CoverURL != "https://img.example/azm044.jpg" {
+				t.Fatalf("unexpected movie info: %+v", m)
+			}
+			if m.ReleaseDate != parser.ParseDate("2023/03/11") || m.Runtime != 97 || m.Maker != "同人" || m.Label != "アニクラ勢もぐせく" || m.Series != "ケイ" || strings.Join(m.Actors, ",") != "冬愛ことね" || strings.Join(m.Genres, ",") != "胡桃,原神" {
+				t.Fatalf("unexpected parsed fields: %+v", m)
+			}
+		})
+	}
+}
+
 func TestCocoonSearchTemplate(t *testing.T) {
 	const body = `<div id="list"><a href="https://konodare.wew.jp/azm044/" class="entry-card-wrap"><article><img src="https://img.example/azm044.jpg"><h2 class="entry-card-title">AZM044</h2><div class="entry-card-snippet"><b>テスト作品</b></div></article></a></div>`
 	p := offline(t, func(r *http.Request) (int, string) {

@@ -345,15 +345,31 @@ func (p *Konodare) GetMovieInfoByURL(raw string) (*model.MovieInfo, error) {
 		m.Title = text(body.Find("h9").First())
 		m.Summary = summary(body.Find("h9").First().NextAllFiltered("div").First())
 		product := body.Find("table.product").First()
+		if product.Length() == 0 {
+			product = body.Find("table").FilterFunction(func(_ int, table *goquery.Selection) bool {
+				return table.Find("th.api_ko").Length() > 0
+			}).First()
+		}
 		m.Number = text(product.Find("th").First())
-		if m.Number == "" {
+		if !numberPattern.MatchString(m.Number) {
 			m.Number = text(a.Find("h1").First())
 		}
 		m.CoverURL = image(product.Find(".product_image img, tr.mini img"), base)
+		if m.CoverURL == "" {
+			m.CoverURL = image(a.Find(".eye-catch img"), base)
+		}
 		product.Find("td.product_item").Each(func(_ int, r *goquery.Selection) { field(m, text(r), r.NextFiltered("td")) })
+		product.Find("th.api_ko").Each(func(_ int, key *goquery.Selection) {
+			if label(text(key)) != "女優" {
+				field(m, text(key), key.NextFiltered("td.api"))
+			}
+		})
 		body.Find(".cosplay-table td.chara").Each(func(_ int, r *goquery.Selection) {
 			key := label(text(r))
-			if key == "キャラクター" || key == "出典" || key == "原作" {
+			switch key {
+			case "女優":
+				field(m, key, r.NextFiltered("td"))
+			case "キャラクター", "出典", "原作":
 				m.Genres = append(m.Genres, values(r.NextFiltered("td"))...)
 			}
 		})
