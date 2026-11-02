@@ -3,7 +3,7 @@ package imageutil
 import (
 	"bytes"
 	"encoding/base64"
-	"image/jpeg"
+	"image"
 	"testing"
 
 	"github.com/gen2brain/jpegli"
@@ -27,10 +27,16 @@ func TestJPEGDecode(t *testing.T) {
 	data, err := base64.StdEncoding.DecodeString(base64EncodedImage)
 	require.NoError(t, err)
 
-	var jpegErr jpeg.UnsupportedError
-	_, err = jpeg.Decode(bytes.NewReader(data))
-	require.ErrorAs(t, err, &jpegErr)
+	t.Run("SDK", func(t *testing.T) {
+		decoded, format, err := Decode(bytes.NewReader(data))
+		require.NoError(t, err)
+		require.Equal(t, "jpeg", format)
+		require.Equal(t, image.Rect(0, 0, 32, 18), decoded.Bounds())
+	})
 
-	_, err = jpegli.Decode(bytes.NewReader(data))
-	require.NoError(t, err)
+	t.Run("jpegli", func(t *testing.T) {
+		decoded, err := jpegli.Decode(bytes.NewReader(data))
+		require.NoError(t, err)
+		require.Equal(t, image.Rect(0, 0, 32, 18), decoded.Bounds())
+	})
 }
