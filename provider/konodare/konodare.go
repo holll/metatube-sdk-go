@@ -399,11 +399,19 @@ func (p *Konodare) SearchMovie(keyword string) ([]*model.MovieSearchResult, erro
 	if strings.TrimSpace(keyword) == "" {
 		return nil, provider.ErrInvalidKeyword
 	}
-	rs, err := p.searchSite(oldBase, keyword)
-	if err != nil || len(rs) > 0 {
-		return rs, err
+	keywords := []string{keyword}
+	if normalized := p.NormalizeMovieKeyword(keyword); numberPattern.MatchString(normalized) && strings.ContainsAny(normalized, "0123456789") && strings.Contains(normalized, "-") {
+		keywords = append(keywords, strings.ReplaceAll(normalized, "-", ""))
 	}
-	return p.searchSite(newBase, keyword)
+	for _, query := range keywords {
+		for _, base := range []string{oldBase, newBase} {
+			rs, err := p.searchSite(base, query)
+			if err != nil || len(rs) > 0 {
+				return rs, err
+			}
+		}
+	}
+	return []*model.MovieSearchResult{}, nil
 }
 
 func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult, error) {

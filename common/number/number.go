@@ -46,8 +46,11 @@ func Trim(s string) string {
 	} else if ss = regexp.MustCompile(`(?i)((?:[a-z]+\d|\d+[a-z])[a-z\d]+)`).FindStringSubmatch(s); len(ss) > 1 {
 		s = ss[1] // otherwise find number with alphas & digits
 	}
-	s = regexp.MustCompile(`(?i)^(?:f?hd|sd)[-_](.*$)`).
+	s = regexp.MustCompile(`(?i)^f?hd[-_](.*$)`).
 		ReplaceAllString(s, "${1}") // trim special prefixes
+	// SD 后接数字可能是发行番号，仅在后接字母时作为画质前缀移除。
+	s = regexp.MustCompile(`(?i)^sd[-_]([a-z].*$)`).
+		ReplaceAllString(s, "${1}")
 	s = regexp.MustCompile(`(?i)[-_.](dvd|iso|mkv|mp4|c?avi|\d*fps|whole|(f|hhb)?hd\d*|sd\d*|(?:360|480|720|1080|2160)[pi]|X1080X|uncensored|leak|[2468]ks?|[xh]26[45])+`).
 		ReplaceAllString(s, "") // trim tags
 	s = regexp.MustCompile(`(?i)(^|[-_\s]+)(carib(b?ean)?(com)?(pr)?|1?Pond?o?|10mu(sume)?|paco(paco)?(mama)?|mura(mura)?|Tokyo[-_\s]?Hot)([-_\s]+(?P<pattern>\d{4,}[-_]\d{2,}|[a-z]{1,4}\d{2,4})|$)`).

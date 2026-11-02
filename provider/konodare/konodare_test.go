@@ -50,10 +50,14 @@ func TestRealEmptySearchTemplates(t *testing.T) {
 				if r.URL.Host == "konodare.wew.jp" {
 					return 200, oldEmptyHTML
 				}
-				return 200, tc.modern
+				return 200, strings.ReplaceAll(tc.modern, "HHSI-024", r.URL.Query().Get("s"))
 			})
 			rs, err := p.SearchMovie("HHSI-024")
-			if err != nil || len(rs) != tc.count || strings.Join(calls, ",") != "konodare.wew.jp,konodare.jp" {
+			wantCalls := "konodare.wew.jp,konodare.jp"
+			if tc.count == 0 {
+				wantCalls += ",konodare.wew.jp,konodare.jp"
+			}
+			if err != nil || len(rs) != tc.count || strings.Join(calls, ",") != wantCalls {
 				t.Fatal(rs, err, calls)
 			}
 		})
@@ -93,6 +97,78 @@ func TestEmptySearchRequiresTemplateAnchors(t *testing.T) {
 		if _, err := p.SearchMovie("HHSI-024"); err == nil {
 			t.Fatal(body)
 		}
+	}
+}
+
+func TestSearchNumberVariants(t *testing.T) {
+	for _, tc := range []struct {
+		name, keyword, hitHost, hitQuery string
+		wantCalls                        string
+	}{
+		{"原词优先", "NCY-209", "konodare.wew.jp", "NCY-209", "konodare.wew.jp:NCY-209"},
+		{"新站原词优先", "NCY-209", "konodare.jp", "NCY-209", "konodare.wew.jp:NCY-209,konodare.jp:NCY-209"},
+		{"旧站无横杠变体", "NCY-209", "konodare.wew.jp", "NCY209", "konodare.wew.jp:NCY-209,konodare.jp:NCY-209,konodare.wew.jp:NCY209"},
+		{"新站无横杠变体", "NCY-209", "konodare.jp", "NCY209", "konodare.wew.jp:NCY-209,konodare.jp:NCY-209,konodare.wew.jp:NCY209,konodare.jp:NCY209"},
+		{"保留前导零和后缀", "ncy-0209a", "konodare.wew.jp", "NCY0209A", "konodare.wew.jp:ncy-0209a,konodare.jp:ncy-0209a,konodare.wew.jp:NCY0209A"},
+		{"不重复无横杠查询", "NCY209", "", "", "konodare.wew.jp:NCY209,konodare.jp:NCY209"},
+		{"不改写普通关键词", "日本-作品", "", "", "konodare.wew.jp:日本-作品,konodare.jp:日本-作品"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls []string
+			p := offline(t, func(r *http.Request) (int, string) {
+				query := r.URL.Query().Get("s")
+				calls = append(calls, r.URL.Host+":"+query)
+				if r.URL.Host == tc.hitHost && query == tc.hitQuery {
+					if r.URL.Host == "konodare.jp" {
+						return 200, strings.ReplaceAll(newSearchHTML, "COSH-308", tc.hitQuery)
+					}
+					return 200, strings.ReplaceAll(oldSearchHTML, "PNME-333", tc.hitQuery)
+				}
+				if r.URL.Host == "konodare.jp" {
+					return 200, strings.ReplaceAll(newEmptyHTML, "HHSI-024", query)
+				}
+				return 200, oldEmptyHTML
+			})
+			rs, err := p.SearchMovie(tc.keyword)
+			if err != nil || strings.Join(calls, ",") != tc.wantCalls {
+				t.Fatal(rs, err, calls)
+			}
+			if tc.hitHost == "" {
+				if len(rs) != 0 {
+					t.Fatal(rs)
+				}
+			} else if len(rs) != 1 || rs[0].Number != p.NormalizeMovieKeyword(tc.hitQuery) {
+				t.Fatal(rs)
+			}
+		})
+	}
+}
+
+func TestNumberVariantDetailRoundtrip(t *testing.T) {
+	for _, detailNumber := range []string{"NCY209", "NCY0209", "NCY209A"} {
+		t.Run(detailNumber, func(t *testing.T) {
+			p := offline(t, func(r *http.Request) (int, string) {
+				if r.URL.Query().Has("s") {
+					query := r.URL.Query().Get("s")
+					if query == "NCY209" && r.URL.Host == "konodare.wew.jp" {
+						return 200, strings.ReplaceAll(oldSearchHTML, "PNME-333", "NCY209")
+					}
+					if r.URL.Host == "konodare.jp" {
+						return 200, strings.ReplaceAll(newEmptyHTML, "HHSI-024", query)
+					}
+					return 200, oldEmptyHTML
+				}
+				return 200, strings.ReplaceAll(oldHTML, "PNME-333", detailNumber)
+			})
+			m, err := p.GetMovieInfoByID("NCY-209")
+			if detailNumber == "NCY209" {
+				if err != nil || m.Number != detailNumber {
+					t.Fatal(m, err)
+				}
+			} else if !errors.Is(err, provider.ErrInfoNotFound) {
+				t.Fatal(m, err)
+			}
+		})
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	_ "github.com/metatube-community/metatube-sdk-go/provider/1pondo"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/airavcity"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/aventertainments"
+	_ "github.com/metatube-community/metatube-sdk-go/provider/avgood"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/avwiki"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/c0930"
 	_ "github.com/metatube-community/metatube-sdk-go/provider/caribbeancom"
