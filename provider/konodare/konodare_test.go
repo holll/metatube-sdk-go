@@ -225,6 +225,43 @@ func TestCocoonSearchTemplate(t *testing.T) {
 	}
 }
 
+func TestNumberWithAppendedActor(t *testing.T) {
+	for _, tc := range []struct {
+		name, displayed, want string
+	}{
+		{"演员名", "NCY224月雪ミヤコ", "NCY224"},
+		{"带横杠", "NCY-224月雪ミヤコ", "NCY-224"},
+		{"普通番号", "NCY-224", "NCY-224"},
+		{"版本后缀", "NCY-224A", "NCY-224A"},
+		{"保留前导零", "NCY0224月雪ミヤコ", "NCY0224"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := offline(t, func(r *http.Request) (int, string) {
+				if r.URL.Query().Has("s") {
+					return 200, strings.ReplaceAll(oldSearchHTML, "PNME-333", tc.displayed)
+				}
+				return 200, strings.ReplaceAll(oldHTML, "PNME-333", tc.displayed)
+			})
+			rs, err := p.SearchMovie("NCY-224")
+			if err != nil || len(rs) != 1 || rs[0].Number != tc.want {
+				t.Fatal(rs, err)
+			}
+			m, err := p.GetMovieInfoByURL("https://konodare.wew.jp/ncy224/")
+			if err != nil || m.Number != tc.want {
+				t.Fatal(m, err)
+			}
+			_, err = p.GetMovieInfoByID("NCY-224")
+			if tc.want == "NCY224" || tc.want == "NCY-224" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if !errors.Is(err, provider.ErrInfoNotFound) {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestCocoonSearchSkipsTitlelessRelatedCard(t *testing.T) {
 	body := strings.Replace(oldSearchHTML, `</div></main>`, `<a class="entry-card-wrap" href="/pnme-223/"><article><img src="https://img.example/other.jpg"><h2 class="entry-card-title">PNME-223</h2></article></a></div></main>`, 1)
 	p := offline(t, func(*http.Request) (int, string) { return 200, body })

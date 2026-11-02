@@ -28,7 +28,11 @@ func TestURLAliases(t *testing.T) {
 // RoundTripper 复刻该跳转。
 func TestSearchMovieRegionNotAvailable(t *testing.T) {
 	p := New()
+	var searches int
 	p.ClonedCollector().WithTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if strings.Contains(r.URL.Path, "searchstr=") {
+			searches++
+		}
 		if strings.Contains(r.URL.Path, regionNotAvailable) {
 			body := `<html><head><title>このページはお住まいの地域からご利用になれません。</title></head></html>`
 			return &http.Response{
@@ -51,4 +55,5 @@ func TestSearchMovieRegionNotAvailable(t *testing.T) {
 	}))
 	_, err := p.SearchMovie("HHSI-024")
 	require.ErrorIs(t, err, ErrRegionNotAvailable)
+	assert.Equal(t, 1, searches)
 }

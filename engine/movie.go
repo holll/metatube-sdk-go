@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/metatube-community/metatube-sdk-go/collection/sets"
-	"github.com/metatube-community/metatube-sdk-go/collection/slices"
 	"github.com/metatube-community/metatube-sdk-go/common/comparer"
 	"github.com/metatube-community/metatube-sdk-go/common/number"
 	"github.com/metatube-community/metatube-sdk-go/engine/providerid"
@@ -166,22 +165,7 @@ func (e *Engine) SearchMovieAll(keyword string, fallback bool) (results []*model
 		msr := sets.NewOrderedSetWithHash(func(v *model.MovieSearchResult) string { return v.Provider + v.ID })
 		msr.Add(results...)
 		results = msr.AsSlice()
-		// post-processing
-		ps := new(slices.WeightedSlice[*model.MovieSearchResult, float64])
-		for _, result := range results {
-			if !result.IsValid() /* validation check */ {
-				continue
-			}
-			if _, err := e.GetMovieProviderByName(result.Provider); err != nil {
-				e.logger.Printf("ignore provider %s as not found", result.Provider)
-				continue
-			}
-			priority := comparer.Compare(keyword, result.Number) *
-				e.MustGetMovieProviderByName(result.Provider).Priority()
-			ps.Append(result, priority)
-		}
-		// sort by priority.
-		results = ps.SortFunc(sort.Stable).Slice()
+		results = e.sortMovieSearchResults(keyword, results)
 	}()
 
 	if fallback /* query database for missing results  */ {
@@ -199,6 +183,47 @@ func (e *Engine) SearchMovieAll(keyword string, fallback bool) (results []*model
 
 	results, err = e.searchMovieAll(keyword)
 	return
+}
+
+func (e *Engine) sortMovieSearchResults(keyword string, results []*model.MovieSearchResult) []*model.MovieSearchResult {
+	type rankedResult struct {
+		result *model.MovieSearchResult
+		tier   int
+		weight float64
+	}
+	ranked := make([]rankedResult, 0, len(results))
+	for _, result := range results {
+		if !result.IsValid() {
+			continue
+		}
+		provider, err := e.GetMovieProviderByName(result.Provider)
+		if err != nil {
+			e.logger.Printf("ignore provider %s as not found", result.Provider)
+			continue
+		}
+		r := rankedResult{result: result, weight: provider.Priority()}
+		switch {
+		case strings.EqualFold(keyword, result.Number):
+			r.tier = 2
+		case number.Equivalent(keyword, result.Number):
+			r.tier = 1
+		default:
+			r.weight *= comparer.Compare(keyword, result.Number)
+		}
+		ranked = append(ranked, r)
+	}
+	// 匹配等级先于站点权重，避免高权重源的近似番号覆盖精确匹配。
+	sort.SliceStable(ranked, func(i, j int) bool {
+		if ranked[i].tier != ranked[j].tier {
+			return ranked[i].tier > ranked[j].tier
+		}
+		return ranked[i].weight > ranked[j].weight
+	})
+	results = results[:0]
+	for _, r := range ranked {
+		results = append(results, r.result)
+	}
+	return results
 }
 
 func (e *Engine) getMovieInfoFromDB(provider mt.MovieProvider, id string) (*model.MovieInfo, error) {

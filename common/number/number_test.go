@@ -6,6 +6,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEquivalent(t *testing.T) {
+	for _, tt := range []struct {
+		a, b string
+		want bool
+	}{
+		{"SSIS-001", "ssis00001", true},
+		{"SSIS_001", "SSIS-1", true},
+		{"T28-082", "T28_00082", true},
+		{"FC2-PPV-1234567", "fc2_1234567", true},
+		{"123456-001", "123456_001", true},
+		{"SSIS-001", "SSIS-002", false},
+		{"SSIS-001", "1SSIS-001", false},
+		{"T28-082", "T-28082", false},
+		{"1234-56", "123-456", false},
+		{"123456-001", "123456-1", false},
+		{"GYUTTO-001", "GYUTTO-1", false},
+		{"SSIS-001-C", "SSIS-001", false},
+		{"", "", false},
+	} {
+		t.Run(tt.a+"/"+tt.b, func(t *testing.T) {
+			assert.Equal(t, tt.want, Equivalent(tt.a, tt.b))
+		})
+	}
+}
+
 func TestTrim(t *testing.T) {
 	for _, unit := range []struct {
 		orig string

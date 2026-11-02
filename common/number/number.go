@@ -6,6 +6,34 @@ import (
 	"strings"
 )
 
+var equivalentNumberRe = regexp.MustCompile(`^([A-Z]+|[A-Z][A-Z0-9]*-)([0-9]+)$`)
+
+// Equivalent 仅比较安全的番号变体，不移除发行商前缀或文件版本后缀。
+func Equivalent(a, b string) bool {
+	key := func(s string) string {
+		s = strings.ToUpper(strings.TrimSpace(s))
+		s = strings.ReplaceAll(s, "_", "-")
+		if IsFC2(s) {
+			s = strings.TrimPrefix(s, "FC2")
+			s = strings.TrimPrefix(s, "-")
+			s = strings.TrimPrefix(s, "PPV")
+			return "FC2-" + strings.TrimPrefix(s, "-")
+		}
+		if IsSpecial(s) {
+			return s
+		}
+		if parts := equivalentNumberRe.FindStringSubmatch(s); parts != nil {
+			digits := strings.TrimLeft(parts[2], "0")
+			if digits == "" {
+				digits = "0"
+			}
+			return strings.TrimSuffix(parts[1], "-") + "-" + digits
+		}
+		return s
+	}
+	return strings.TrimSpace(a) != "" && strings.TrimSpace(b) != "" && key(a) == key(b)
+}
+
 func Trim(s string) string {
 	const maxExtLength = 7
 	if ext := path.Ext(s); len(ext) < maxExtLength {

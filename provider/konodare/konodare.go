@@ -26,12 +26,13 @@ const (
 )
 
 var (
-	_             provider.MovieProvider      = (*Konodare)(nil)
-	_             provider.MovieSearcher      = (*Konodare)(nil)
-	_             provider.ProviderURLAliases = (*Konodare)(nil)
-	slugPattern                               = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	numberPattern                             = regexp.MustCompile(`^[A-Z0-9]+(?:-[A-Z0-9]+)*$`)
-	datePattern                               = regexp.MustCompile(`\d{4}[/.年-]\d{1,2}[/.月-]\d{1,2}日?`)
+	_                      provider.MovieProvider      = (*Konodare)(nil)
+	_                      provider.MovieSearcher      = (*Konodare)(nil)
+	_                      provider.ProviderURLAliases = (*Konodare)(nil)
+	slugPattern                                        = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	numberPattern                                      = regexp.MustCompile(`^[A-Z0-9]+(?:-[A-Z0-9]+)*$`)
+	displayedNumberPattern                             = regexp.MustCompile(`^([A-Z0-9]+(?:-[A-Z0-9]+)*)(?:[\p{Han}\p{Hiragana}\p{Katakana}].*)?$`)
+	datePattern                                        = regexp.MustCompile(`\d{4}[/.年-]\d{1,2}[/.月-]\d{1,2}日?`)
 )
 
 type Konodare struct{ *scraper.Scraper }
@@ -60,6 +61,15 @@ func (p *Konodare) NormalizeMovieID(s string) string {
 		return strings.ToLower(s)
 	}
 	return p.NormalizeMovieKeyword(s)
+}
+
+// displayedNumber 去除旧站番号后紧接的日文演员名，保留数字前导零及 ASCII 版本后缀。
+func (p *Konodare) displayedNumber(s string) string {
+	s = p.NormalizeMovieKeyword(s)
+	if m := displayedNumberPattern.FindStringSubmatch(s); len(m) > 1 && strings.ContainsAny(m[1], "0123456789") {
+		return m[1]
+	}
+	return ""
 }
 
 func validSlug(s string) bool {
@@ -350,9 +360,9 @@ func (p *Konodare) GetMovieInfoByURL(raw string) (*model.MovieInfo, error) {
 				return table.Find("th.api_ko").Length() > 0
 			}).First()
 		}
-		m.Number = text(product.Find("th").First())
-		if !numberPattern.MatchString(m.Number) {
-			m.Number = text(a.Find("h1").First())
+		m.Number = p.displayedNumber(text(product.Find("th").First()))
+		if m.Number == "" {
+			m.Number = p.displayedNumber(text(a.Find("h1").First()))
 		}
 		m.CoverURL = image(product.Find(".product_image img, tr.mini img"), base)
 		if m.CoverURL == "" {
@@ -441,10 +451,10 @@ func (p *Konodare) searchSite(base, keyword string) ([]*model.MovieSearchResult,
 				return
 			}
 			r.Title = text(card.Find("b.entry-card-title"))
-			r.Number = text(card.Find(".card-number"))
+			r.Number = p.displayedNumber(text(card.Find(".card-number")))
 			if r.Title == "" && r.Number == "" {
-				heading := text(card.Find("h2.entry-card-title"))
-				if numberPattern.MatchString(heading) {
+				heading := p.displayedNumber(text(card.Find("h2.entry-card-title")))
+				if heading != "" {
 					r.Number = heading
 					r.Title = text(card.Find(".entry-card-snippet b"))
 				}

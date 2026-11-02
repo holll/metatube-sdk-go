@@ -590,18 +590,57 @@ func (fz *FANZA) NormalizeMovieKeyword(keyword string) string {
 	return strings.ToLower(keyword) /* FANZA prefers lowercase */
 }
 
+var movieSearchNumberRe = regexp.MustCompile(`^([a-z]+)[-_]?([0-9]+)$`)
+
+func movieSearchKeywords(keyword string) []string {
+	keyword = strings.ToLower(keyword)
+	parts := movieSearchNumberRe.FindStringSubmatch(keyword)
+	if parts == nil {
+		if strings.Contains(keyword, "-") {
+			return []string{strings.Replace(keyword, "-", "00", 1) + "#", strings.Replace(keyword, "-", "", 1)}
+		}
+		return []string{keyword}
+	}
+	digits := strings.TrimLeft(parts[2], "0")
+	if digits == "" {
+		digits = "0"
+	}
+	padded := digits
+	if len(padded) < 5 {
+		padded = strings.Repeat("0", 5-len(padded)) + padded
+	}
+	compact := parts[1] + parts[2]
+	candidates := []string{compact, parts[1] + padded + "#", parts[1] + digits}
+	if strings.ContainsAny(keyword, "-_") {
+		candidates[0], candidates[1] = candidates[1], candidates[0]
+	}
+	unique := sets.NewOrderedSet[string]()
+	unique.Add(candidates...)
+	return unique.AsSlice()
+}
+
 func (fz *FANZA) SearchMovie(keyword string) ([]*model.MovieSearchResult, error) {
-	if strings.Contains(keyword, "-") {
-		if results, err := fz.searchMovieNext(strings.Replace(keyword,
-			/* FANZA cannot search hyphened number */
-			"-", "00", 1) +
-			/* Add a `#` sign to distinguish 001 style number */
-			"#"); err == nil && len(results) > 0 {
+	isNumber := movieSearchNumberRe.MatchString(strings.ToLower(keyword))
+	for _, candidate := range movieSearchKeywords(keyword) {
+		results, err := fz.searchMovieNext(candidate)
+		if err != nil {
+			return nil, err
+		}
+		if isNumber {
+			// 搜索页可能只返回相似番号，必须校验后再决定是否停止重试。
+			matched := results[:0]
+			for _, result := range results {
+				if result.IsValid() && number.Equivalent(keyword, result.Number) {
+					matched = append(matched, result)
+				}
+			}
+			results = matched
+		}
+		if len(results) > 0 {
 			return results, nil
 		}
 	}
-	// fallback to normal dvd search.
-	return fz.searchMovieNext(strings.Replace(keyword, "-", "", 1))
+	return nil, nil
 }
 
 func (fz *FANZA) searchMovieNext(keyword string) (results []*model.MovieSearchResult, err error) {
