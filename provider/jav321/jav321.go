@@ -17,12 +17,14 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/common/parser"
 	"github.com/metatube-community/metatube-sdk-go/model"
 	"github.com/metatube-community/metatube-sdk-go/provider"
+	"github.com/metatube-community/metatube-sdk-go/provider/internal/dmmcover"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/scraper"
 )
 
 var (
 	_ provider.MovieProvider = (*JAV321)(nil)
 	_ provider.MovieSearcher = (*JAV321)(nil)
+	_ provider.ConfigSetter  = (*JAV321)(nil)
 )
 
 const (
@@ -38,14 +40,28 @@ const (
 
 type JAV321 struct {
 	*scraper.Scraper
+	hdCover *dmmcover.Updater
 }
 
 func New() *JAV321 {
-	return &JAV321{scraper.NewDefaultScraper(Name, baseURL, Priority, language.Japanese)}
+	return &JAV321{
+		Scraper: scraper.NewDefaultScraper(Name, baseURL, Priority, language.Japanese),
+		hdCover: dmmcover.New(nil),
+	}
+}
+
+func (jav *JAV321) SetConfig(config provider.Config) error { return jav.hdCover.SetConfig(config) }
+
+func (jav *JAV321) SetProxy(raw string) error {
+	if err := jav.Scraper.SetProxy(raw); err != nil {
+		return err
+	}
+	return jav.hdCover.SetProxy(raw)
 }
 
 func (jav *JAV321) SetRequestTimeout(_ time.Duration) {
 	jav.Scraper.SetRequestTimeout(10 * time.Second)
+	jav.hdCover.SetRequestTimeout(10 * time.Second)
 }
 
 func (jav *JAV321) GetMovieInfoByID(id string) (info *model.MovieInfo, err error) {
@@ -209,6 +225,9 @@ func (jav *JAV321) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err 
 	})
 
 	err = c.Visit(info.Homepage)
+	if err == nil {
+		jav.hdCover.Update(info)
+	}
 	return
 }
 

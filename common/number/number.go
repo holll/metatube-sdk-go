@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
-var equivalentNumberRe = regexp.MustCompile(`^([A-Z]+|[A-Z][A-Z0-9]*-)([0-9]+)$`)
+var (
+	equivalentNumberRe = regexp.MustCompile(`^([A-Z]+|[A-Z][A-Z0-9]*-)([0-9]+)$`)
+	paddedNumberRe     = regexp.MustCompile(`^(HEYZO|N)-?([0-9]{2,4})$`)
+)
 
 // Equivalent 仅比较安全的番号变体，不移除发行商前缀或文件版本后缀。
 func Equivalent(a, b string) bool {
@@ -18,6 +21,10 @@ func Equivalent(a, b string) bool {
 			s = strings.TrimPrefix(s, "-")
 			s = strings.TrimPrefix(s, "PPV")
 			return "FC2-" + strings.TrimPrefix(s, "-")
+		}
+		// HEYZO 和 Tokyo-Hot 的 N 系列使用四位数字，允许省略前导零。
+		if parts := paddedNumberRe.FindStringSubmatch(s); parts != nil {
+			return parts[1] + "-" + strings.Repeat("0", 4-len(parts[2])) + parts[2]
 		}
 		if IsSpecial(s) {
 			return s

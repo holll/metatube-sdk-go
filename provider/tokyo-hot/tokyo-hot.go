@@ -209,6 +209,9 @@ func (tht *TokyoHot) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, er
 }
 
 func (tht *TokyoHot) NormalizeMovieKeyword(keyword string) string {
+	if ss := regexp.MustCompile(`(?i)^n[-_]?(\d{2,4})$`).FindStringSubmatch(keyword); len(ss) == 2 {
+		return fmt.Sprintf("n%04s", ss[1])
+	}
 	if regexp.MustCompile(`^(?i)[a-z_]*\d+$`).MatchString(keyword) {
 		return strings.ToLower(keyword)
 	}
@@ -216,6 +219,9 @@ func (tht *TokyoHot) NormalizeMovieKeyword(keyword string) string {
 }
 
 func (tht *TokyoHot) SearchMovie(keyword string) (results []*model.MovieSearchResult, err error) {
+	if keyword = tht.NormalizeMovieKeyword(keyword); keyword == "" {
+		return nil, provider.ErrInvalidKeyword
+	}
 	c := tht.ClonedCollector()
 
 	c.OnXML(`//*[@id="main"]/ul/li`, func(e *colly.XMLElement) {

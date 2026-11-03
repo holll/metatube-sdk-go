@@ -34,6 +34,25 @@ func TestSortMovieSearchResults(t *testing.T) {
 	assert.Equal(t, []string{"exact-high", "exact-low", "equivalent-high", "equivalent-low", "fuzzy"}, ids)
 }
 
+func TestSortPaddedMovieNumbers(t *testing.T) {
+	for _, tc := range []struct{ query, number, fuzzy string }{
+		{"N-960", "n0960", "MAAN-960"},
+		{"HEYZO-702", "HEYZO-0702", "HODV-21609"},
+		{"HEYZO-679", "HEYZO-0679", "HODV-21609"},
+	} {
+		e := New(nil)
+		e.MustGetMovieProviderByName(fanza.Name).SetPriority(100000)
+		e.MustGetMovieProviderByName(javbus.Name).SetPriority(1)
+		results := e.sortMovieSearchResults(tc.query, []*model.MovieSearchResult{
+			{ID: "fuzzy", Number: tc.fuzzy, Title: "title", Provider: fanza.Name, Homepage: "https://example.com/fuzzy"},
+			{ID: "equivalent", Number: tc.number, Title: "title", Provider: javbus.Name, Homepage: "https://example.com/equivalent"},
+		})
+		if len(results) != 2 || results[0].ID != "equivalent" {
+			t.Fatal(tc.query, results)
+		}
+	}
+}
+
 func TestSortMovieSearchResultsStable(t *testing.T) {
 	e := New(nil)
 	results := []*model.MovieSearchResult{

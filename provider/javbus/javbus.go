@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gocolly/colly/v2"
 	"golang.org/x/text/language"
@@ -17,6 +18,7 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/common/parser"
 	"github.com/metatube-community/metatube-sdk-go/model"
 	"github.com/metatube-community/metatube-sdk-go/provider"
+	"github.com/metatube-community/metatube-sdk-go/provider/internal/dmmcover"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/scraper"
 )
 
@@ -24,6 +26,7 @@ var (
 	_ provider.MovieProvider = (*JavBus)(nil)
 	_ provider.MovieSearcher = (*JavBus)(nil)
 	_ provider.Fetcher       = (*JavBus)(nil)
+	_ provider.ConfigSetter  = (*JavBus)(nil)
 )
 
 const (
@@ -41,10 +44,12 @@ const (
 type JavBus struct {
 	*fetch.Fetcher
 	*scraper.Scraper
+	hdCover *dmmcover.Updater
 }
 
 func New() *JavBus {
 	return &JavBus{
+		hdCover: dmmcover.New(nil),
 		Fetcher: fetch.Default(&fetch.Config{Referer: baseURL}),
 		Scraper: scraper.NewDefaultScraper(
 			Name, baseURL, Priority,
@@ -61,6 +66,20 @@ func New() *JavBus {
 				{Name: "age", Value: "verified"},
 			})),
 	}
+}
+
+func (bus *JavBus) SetConfig(config provider.Config) error { return bus.hdCover.SetConfig(config) }
+
+func (bus *JavBus) SetProxy(raw string) error {
+	if err := bus.Scraper.SetProxy(raw); err != nil {
+		return err
+	}
+	return bus.hdCover.SetProxy(raw)
+}
+
+func (bus *JavBus) SetRequestTimeout(timeout time.Duration) {
+	bus.Scraper.SetRequestTimeout(timeout)
+	bus.hdCover.SetRequestTimeout(timeout)
 }
 
 func (bus *JavBus) NormalizeMovieID(id string) string {
@@ -165,6 +184,9 @@ func (bus *JavBus) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err 
 	})
 
 	err = c.Visit(info.Homepage)
+	if err == nil {
+		bus.hdCover.Update(info)
+	}
 	return
 }
 

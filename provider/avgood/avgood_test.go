@@ -38,7 +38,9 @@ const detailHTML = `<h1 class="content-title">DVDES-221 テスト作品</h1>
 <a class="sample-box" href="//img.example/sample.jpg"></a><a class="sample-box" href="//img.example/sample.jpg"></a>
 <a class="sample-box" href="magnet:?xt=invalid"></a><a href="magnet:?xt=invalid">下载</a>
 <aside><div class="star-name"><a>汚染</a></div></aside>`
+
 const searchHTML = `<div class="container"><div class="search-info">約 1 件の結果</div><h3 class="result-title"><a href="/c/53247.html"><em>DVDES</em> - <em>221</em> テスト作品</a></h3></div>`
+
 const emptyHTML = `<div class="container"><div class="search-info">約 0 件の結果</div><div class="no-results"><h3>関連結果が見つかりません</h3></div></div>`
 
 func TestDetails(t *testing.T) {

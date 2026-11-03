@@ -30,6 +30,7 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/provider"
 	"github.com/metatube-community/metatube-sdk-go/provider/fanza/internal/graphql"
 	"github.com/metatube-community/metatube-sdk-go/provider/fanza/internal/searchparse"
+	"github.com/metatube-community/metatube-sdk-go/provider/internal/dmmcover"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/imcmp"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/scraper"
 )
@@ -39,6 +40,7 @@ var (
 	_ provider.MovieSearcher      = (*FANZA)(nil)
 	_ provider.MovieReviewer      = (*FANZA)(nil)
 	_ provider.ProviderURLAliases = (*FANZA)(nil)
+	_ provider.ConfigSetter       = (*FANZA)(nil)
 )
 
 const (
@@ -74,12 +76,14 @@ type FANZA struct {
 	*scraper.Scraper
 	httpClient *http.Client
 	videoAPI   *graphql.Client
+	hdCover    *dmmcover.Updater
 }
 
 func New() *FANZA {
 	httpClient := &http.Client{}
 	return &FANZA{
 		httpClient: httpClient,
+		hdCover:    dmmcover.New(nil),
 		videoAPI: graphql.NewClient(
 			graphql.WithHTTPClient(httpClient),
 		),
@@ -95,9 +99,19 @@ func New() *FANZA {
 	}
 }
 
+func (fz *FANZA) SetConfig(config provider.Config) error { return fz.hdCover.SetConfig(config) }
+
+func (fz *FANZA) SetProxy(raw string) error {
+	if err := fz.Scraper.SetProxy(raw); err != nil {
+		return err
+	}
+	return fz.hdCover.SetProxy(raw)
+}
+
 func (fz *FANZA) SetRequestTimeout(timeout time.Duration) {
 	fz.httpClient.Timeout = timeout
 	fz.Scraper.SetRequestTimeout(timeout)
+	fz.hdCover.SetRequestTimeout(timeout)
 }
 
 // URLAliases 声明影片详情所在的另一个主机，使引擎能按 video.dmm.co.jp
@@ -160,11 +174,16 @@ func (fz *FANZA) ParseMovieIDFromURL(rawURL string) (id string, err error) {
 	return
 }
 
-func (fz *FANZA) GetMovieInfoByURL(rawURL string) (*model.MovieInfo, error) {
+func (fz *FANZA) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err error) {
 	if IsDigitalVideoURL(rawURL) {
-		return fz.getDigitalMovieInfoByURL(rawURL)
+		info, err = fz.getDigitalMovieInfoByURL(rawURL)
+	} else {
+		info, err = fz.getMonoMovieInfoByURL(rawURL)
 	}
-	return fz.getMonoMovieInfoByURL(rawURL)
+	if err == nil {
+		fz.hdCover.Update(info)
+	}
+	return
 }
 
 func (fz *FANZA) getDigitalMovieInfoByURL(rawURL string) (*model.MovieInfo, error) {

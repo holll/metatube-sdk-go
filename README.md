@@ -14,6 +14,7 @@ Metadata Tube SDK in Golang.
     - [Contents](#contents)
     - [Features](#features)
     - [Installation](#installation)
+    - [DMM 高清封面](#dmm-高清封面)
     - [Credits](#credits)
     - [License](#license)
 
@@ -44,6 +45,24 @@ the below Go command to install SDK.
 ```sh
 go get -u github.com/metatube-community/metatube-sdk-go
 ```
+
+## DMM 高清封面
+
+JavBus、JAV321、FANZA 支持可选配置 `use_dmm_hd_cover`，默认关闭。使用服务命令启动时，可按需为各来源开启：
+
+```sh
+export MT_MOVIE_PROVIDER_JAVBUS__USE_DMM_HD_COVER=true
+export MT_MOVIE_PROVIDER_JAV321__USE_DMM_HD_COVER=true
+export MT_MOVIE_PROVIDER_FANZA__USE_DMM_HD_COVER=true
+```
+
+SDK 调用方可通过 `engine.WithMovieProviderConfig` 传入包含同名布尔配置的 `provider.Config`。非法布尔值会返回配置错误。
+
+开启后，仅从两种 DMM CDN 的 `digital/video` 预览图路径提取 CID；没有 CID、多个 CID 冲突或与可识别的原封面 CID 不一致时保持原值。不从发行番号猜测 CID，也不改写 `mono/movie` 等其他类目路径。候选图片位于 `awsimgsrc.dmm.co.jp`，经有界 GET 验证 JPEG 头和尺寸后，同时更新 `CoverURL` 和 `BigCoverURL`，不改变缩略图、预览图和其他元数据。验证失败不影响影片信息获取，并保留原封面。
+
+图片验证沿用对应 provider 的代理和请求超时配置（JAV321 维持现有固定 10 秒策略），禁止重定向，最多读取 128 KiB；图片尺寸信息不在这个范围内时不替换。候选图不保证一定比原图清晰，部分老作品仍只有原分辨率。此配置不解决 FANZA 元数据页面的地区访问限制。
+
+开启配置后，已缓存的影片信息需要重新抓取；客户端已有的海报缓存也可能需要刷新。
 
 ## Credits
 
