@@ -12,6 +12,7 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/common/parser"
 	"github.com/metatube-community/metatube-sdk-go/model"
 	"github.com/metatube-community/metatube-sdk-go/provider"
+	"github.com/metatube-community/metatube-sdk-go/provider/internal/previewimage"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/scraper"
 )
 
@@ -87,8 +88,9 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 
 	c := gg.ClonedCollector()
 
-	// Title: div.title_text
-	c.OnXML(`//div[contains(@class,"title_text")]`, func(e *colly.XMLElement) {
+	// The current template uses h2; older pages used div. Keep the first
+	// title, not later section headings such as the previews heading.
+	c.OnHTML(`div.title_text, h2.title_text`, func(e *colly.HTMLElement) {
 		if info.Title == "" {
 			title := strings.TrimSpace(e.Text)
 			if title != "" {
@@ -107,6 +109,13 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 		}
 	})
 
+	// Current template separates the label and value into sibling elements.
+	c.OnHTML(`div.video_number`, func(e *colly.HTMLElement) {
+		if number := strings.TrimSpace(e.Text); number != "" && info.Number == "" {
+			info.Number = number
+		}
+	})
+
 	// Number: div containing "番号："(日語) / "番號："(繁中)。
 	// 两种写法都兼容，避免站点切换语言版本时标签变字导致 Number 解析为空，
 	// 进而使 MovieInfo.IsValid() 失败、详情返回 500。
@@ -115,7 +124,9 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 			text := strings.TrimSpace(e.Text)
 			for _, label := range []string{"番号：", "番號："} {
 				if after, ok := strings.CutPrefix(text, label); ok {
-					info.Number = strings.TrimSpace(after)
+					if number := strings.TrimSpace(after); number != "" && info.Number == "" {
+						info.Number = number
+					}
 					return
 				}
 			}
@@ -137,14 +148,22 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 		}
 	})
 
-	// Preview images: images inside the previews section
-	// Pattern: https://cdn-1.ggjav.com/media/preview/{id}_{n}.jpg
-	previewRe := regexp.MustCompile(`/media/preview/`)
-	c.OnXML(`//div[contains(@class,"previews")]//img`, func(e *colly.XMLElement) {
-		src := e.Attr("src")
-		if src != "" && previewRe.MatchString(src) && !strings.Contains(src, "no_image") {
-			imgURL := e.Request.AbsoluteURL(src)
-			info.PreviewImages = append(info.PreviewImages, imgURL)
+	// Only accept explicitly listed stills belonging to this movie. Match the
+	// class token (not e.g. "other-previews") and the observed {id}_{n} path.
+	previewRe := regexp.MustCompile(`^/media/preview/` + regexp.QuoteMeta(id) + `_[0-9]+\.(?i:jpg|jpeg|png|webp|avif)$`)
+	c.OnHTML(`div.previews img`, func(e *colly.HTMLElement) {
+		// Prefer the real lazy-loaded image to a placeholder or low-res src.
+		for _, attr := range []string{"data-src", "data-original", "data-lazy-src", "src"} {
+			images := previewimage.Append(nil, e.Attr(attr), e.Request.URL.String())
+			if len(images) == 0 {
+				continue
+			}
+			u, parseErr := url.Parse(images[0])
+			if parseErr != nil || !previewRe.MatchString(u.Path) {
+				continue
+			}
+			info.PreviewImages = previewimage.Append(info.PreviewImages, images[0], e.Request.URL.String())
+			break
 		}
 	})
 

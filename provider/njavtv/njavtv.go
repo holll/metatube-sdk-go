@@ -77,10 +77,12 @@ func (nt *NjavTV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err e
 	}
 
 	info = &model.MovieInfo{
-		ID:            id,
-		Provider:      nt.Name(),
-		Homepage:      rawURL,
-		Actors:        []string{},
+		ID:       id,
+		Provider: nt.Name(),
+		Homepage: rawURL,
+		Actors:   []string{},
+		// 已核实页面的播放器 thumbnail 是多格 seek 精灵图，不是独立剧照。
+		// 不将其或推荐卡片封面写入 PreviewImages。
 		PreviewImages: []string{},
 		Genres:        []string{},
 	}

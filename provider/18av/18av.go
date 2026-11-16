@@ -132,10 +132,12 @@ func (av *EighteenAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, e
 	}
 
 	info = &model.MovieInfo{
-		ID:            id,
-		Provider:      av.Name(),
-		Homepage:      rawURL,
-		Actors:        []string{},
+		ID:       id,
+		Provider: av.Name(),
+		Homepage: rawURL,
+		Actors:   []string{},
+		// 已核实的详情模板只提供封面和播放器，没有独立剧照列表。
+		// 不从推荐卡片、演员头像或封面路径推导剧照。
 		PreviewImages: []string{},
 		Genres:        []string{},
 	}

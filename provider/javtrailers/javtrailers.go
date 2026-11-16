@@ -14,6 +14,7 @@ import (
 	"github.com/metatube-community/metatube-sdk-go/common/parser"
 	"github.com/metatube-community/metatube-sdk-go/model"
 	"github.com/metatube-community/metatube-sdk-go/provider"
+	"github.com/metatube-community/metatube-sdk-go/provider/internal/previewimage"
 	"github.com/metatube-community/metatube-sdk-go/provider/internal/scraper"
 )
 
@@ -124,6 +125,14 @@ func (jt *JavTrailers) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, 
 			return
 		}
 		jtTitle, jtThumb, jtDuration = ld.Name, ld.ThumbnailURL, ld.Duration
+	})
+
+	// The gallery is hydrated from Nuxt data, not rendered as <img> tags.
+	// Follow the current video's data key only, never recommendation records.
+	c.OnHTML(`script#__NUXT_DATA__[type="application/json"]`, func(e *colly.HTMLElement) {
+		for _, image := range nuxtGallery([]byte(e.Text), id) {
+			info.PreviewImages = previewimage.Append(info.PreviewImages, image, e.Request.URL.String())
+		}
 	})
 
 	c.OnXML(`//h1`, func(e *colly.XMLElement) {

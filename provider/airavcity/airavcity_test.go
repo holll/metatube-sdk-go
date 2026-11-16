@@ -157,6 +157,9 @@ func TestDetail(t *testing.T) {
 	assert.Zero(t, info.Runtime)
 	assert.Empty(t, info.PreviewVideoURL)
 	assert.Empty(t, info.PreviewVideoHLSURL)
+	// The fixture supplies covers only; do not fabricate a gallery from hid
+	// or collect the recommendation cover just because it shares the path.
+	assert.Empty(t, info.PreviewImages)
 }
 
 func TestDetailMultipleActorsAndOptionalFields(t *testing.T) {

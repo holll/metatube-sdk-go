@@ -76,10 +76,12 @@ func (jx *JavXXX) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err e
 	}
 
 	info = &model.MovieInfo{
-		ID:            id,
-		Provider:      jx.Name(),
-		Homepage:      rawURL,
-		Actors:        []string{},
+		ID:       id,
+		Provider: jx.Name(),
+		Homepage: rawURL,
+		Actors:   []string{},
+		// 已核实的详情页 #scenes 为空；推荐卡片 data-mediabook 是
+		// hover 预览资源，不能据此充当当前影片的独立剧照。
 		PreviewImages: []string{},
 		Genres:        []string{},
 	}
