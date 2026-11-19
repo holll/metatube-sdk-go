@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gocolly/colly/v2"
 	"golang.org/x/text/language"
@@ -189,6 +191,7 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 			err = provider.ErrInfoNotFound
 			return
 		}
+		info.Title = trimNumberPrefix(info.Title, info.Number)
 		// Compute score from like/dislike
 		total := likeCount + dislikeCount
 		if total > 0 {
@@ -198,6 +201,20 @@ func (gg *GGJAV) GetMovieInfoByURL(rawURL string) (info *model.MovieInfo, err er
 
 	err = c.Visit(info.Homepage)
 	return
+}
+
+// trimNumberPrefix removes the exact movie number at the beginning of a title,
+// while preserving titles where the number is part of a longer alphanumeric token.
+func trimNumberPrefix(title, number string) string {
+	title = strings.TrimSpace(title)
+	if number == "" || len(title) < len(number) || !strings.EqualFold(title[:len(number)], number) {
+		return title
+	}
+	rest := title[len(number):]
+	if r, _ := utf8.DecodeRuneInString(rest); unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return title
+	}
+	return strings.TrimSpace(rest)
 }
 
 func (gg *GGJAV) NormalizeMovieKeyword(keyword string) string {

@@ -27,9 +27,22 @@ func TestDetailCurrentTemplate(t *testing.T) {
 	info, err := p.GetMovieInfoByID("301794")
 	require.NoError(t, err)
 	require.True(t, info.IsValid())
-	assert.Equal(t, "KTRA-746 Test movie", info.Title)
+	assert.Equal(t, "Test movie", info.Title)
 	assert.Equal(t, "KTRA-746", info.Number)
 	assert.Equal(t, []string{"https://cdn-1.ggjav.com/media/preview/301794_0.jpg"}, []string(info.PreviewImages))
+}
+
+func TestTrimNumberPrefix(t *testing.T) {
+	for _, tt := range []struct{ title, number, want string }{
+		{"KTRA-746 Test title", "KTRA-746", "Test title"},
+		{"ktra-746：Test title", "KTRA-746", "：Test title"},
+		{"KTRA-746", "KTRA-746", ""},
+		{"KTRA-7469 Test title", "KTRA-746", "KTRA-7469 Test title"},
+		{"A title beginning with another number", "KTRA-746", "A title beginning with another number"},
+		{"KTRA-746作品名", "KTRA-746", "KTRA-746作品名"},
+	} {
+		assert.Equal(t, tt.want, trimNumberPrefix(tt.title, tt.number), tt.title)
+	}
 }
 
 func TestDetailPreviewImages(t *testing.T) {
